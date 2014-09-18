@@ -73,6 +73,8 @@ def _find_window_handle(webdriver, callback):
     if callback(webdriver):
         return original_window_handle
 
+    # Start search beginning with the most recently added window handle, the
+    # chance is higher that this is the correct one in most cases
     window_handles = webdriver.window_handles[::-1]
     window_handles.remove(original_window_handle)
     for window_handle in window_handles:
@@ -88,7 +90,7 @@ def _find_window_handle(webdriver, callback):
 def request(self, method, url, **kwargs):
     # Create a requests session object for this instance that sends the
     # webdriver's default request headers
-    if not hasattr(self, '_betterselenium_request_headers'):
+    if not hasattr(self, '_seleniumrequests_request_headers'):
         self._betterselenium_request_headers = _get_webdriver_request_headers(self)
 
     headers = self._betterselenium_request_headers.copy()
