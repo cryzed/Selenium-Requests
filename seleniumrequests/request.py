@@ -87,7 +87,7 @@ def _find_window_handle(webdriver, callback):
     webdriver.switch_to.window(original_window_handle)
 
 
-def request(self, method, url, **kwargs):
+def _request(self, method, url, **kwargs):
     # Create a requests session object for this instance that sends the
     # webdriver's default request headers
     if not hasattr(self, '_seleniumrequests_request_headers'):
@@ -150,4 +150,4 @@ def request(self, method, url, **kwargs):
 
 
 class RequestMixin(object):
-    request = request
+    request = _request
