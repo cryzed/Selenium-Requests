@@ -87,67 +87,64 @@ def _find_window_handle(webdriver, callback):
     webdriver.switch_to.window(original_window_handle)
 
 
-def _request(self, method, url, **kwargs):
-    # Create a requests session object for this instance that sends the
-    # webdriver's default request headers
-    if not hasattr(self, '_seleniumrequests_request_headers'):
-        self._betterselenium_request_headers = _get_webdriver_request_headers(self)
+class RequestMixin(object):
+    def request(self, method, url, **kwargs):
+        # Create a requests session object for this instance that sends the
+        # webdriver's default request headers
+        if not hasattr(self, '_seleniumrequests_request_headers'):
+            self._betterselenium_request_headers = _get_webdriver_request_headers(self)
 
-    headers = self._betterselenium_request_headers.copy()
-    if 'headers' in kwargs:
-        headers.update(kwargs['headers'])
-    kwargs['headers'] = headers
+        headers = self._betterselenium_request_headers.copy()
+        if 'headers' in kwargs:
+            headers.update(kwargs['headers'])
+        kwargs['headers'] = headers
 
-    original_window_handle = None
-    opened_window_handle = None
-    requested_domain = _get_domain(url)
-    if not _get_domain(self.current_url) == requested_domain:
-        original_window_handle = self.current_window_handle
+        original_window_handle = None
+        opened_window_handle = None
+        requested_domain = _get_domain(url)
+        if not _get_domain(self.current_url) == requested_domain:
+            original_window_handle = self.current_window_handle
 
-        # Try to find an existing window handle that matches the requested
-        # domain
-        condition = lambda webdriver: _get_domain(webdriver.current_url) == requested_domain
-        window_handle = _find_window_handle(self, condition)
+            # Try to find an existing window handle that matches the requested
+            # domain
+            condition = lambda webdriver: _get_domain(webdriver.current_url) == requested_domain
+            window_handle = _find_window_handle(self, condition)
 
-        # Create a new window handle manually in case it wasn't found
-        if window_handle is None:
-            components = urlparse.urlparse(url)
-            self.execute_script("window.open('http://%s');" % components.netloc)
-            opened_window_handle = _find_window_handle(self, condition)
-
-            # Some webdrivers take some time until the new window handle has
-            # loaded the correct URL
-            while opened_window_handle is None:
+            # Create a new window handle manually in case it wasn't found
+            if window_handle is None:
+                components = urlparse.urlparse(url)
+                self.execute_script("window.open('http://%s');" % components.netloc)
                 opened_window_handle = _find_window_handle(self, condition)
 
-    # Acquire webdriver's instance cookies and merge them with potentially
-    # passed cookies
-    cookies = _prepare_requests_cookies(self.get_cookies())
-    if 'cookies' in kwargs:
-        cookies.update(kwargs['cookies'])
-    kwargs['cookies'] = cookies
+                # Some webdrivers take some time until the new window handle has
+                # loaded the correct URL
+                while opened_window_handle is None:
+                    opened_window_handle = _find_window_handle(self, condition)
 
-    response = requests.request(method, url, **kwargs)
+        # Acquire webdriver's instance cookies and merge them with potentially
+        # passed cookies
+        cookies = _prepare_requests_cookies(self.get_cookies())
+        if 'cookies' in kwargs:
+            cookies.update(kwargs['cookies'])
+        kwargs['cookies'] = cookies
 
-    # Set cookies set by the HTTP response within the webdriver instance
-    for cookie in response.cookies:
-        cookie_dict = {'name': cookie.name, 'value': cookie.value, 'secure': cookie.secure}
-        if cookie.expires is not None:
-            cookie_dict['expiry'] = cookie.expires
-        if cookie.path_specified:
-            cookie_dict['path'] = cookie.path
-        if cookie.domain_specified:
-            cookie_dict['domain'] = cookie.domain
-        self.add_cookie(cookie_dict)
+        response = requests.request(method, url, **kwargs)
 
-    if opened_window_handle is not None:
-        self.close()
+        # Set cookies set by the HTTP response within the webdriver instance
+        for cookie in response.cookies:
+            cookie_dict = {'name': cookie.name, 'value': cookie.value, 'secure': cookie.secure}
+            if cookie.expires is not None:
+                cookie_dict['expiry'] = cookie.expires
+            if cookie.path_specified:
+                cookie_dict['path'] = cookie.path
+            if cookie.domain_specified:
+                cookie_dict['domain'] = cookie.domain
+            self.add_cookie(cookie_dict)
 
-    if original_window_handle is not None:
-        self.switch_to.window(original_window_handle)
+        if opened_window_handle is not None:
+            self.close()
 
-    return response
+        if original_window_handle is not None:
+            self.switch_to.window(original_window_handle)
 
-
-class RequestMixin(object):
-    request = _request
+        return response
