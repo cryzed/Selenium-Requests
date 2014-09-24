@@ -3,12 +3,37 @@ from selenium.webdriver import Firefox, Chrome, Ie, Opera, Safari, PhantomJS, An
 from .request import request
 
 
-# Monkey patch Selenium webdriver classes and make them easily importable
-Firefox.request = request
-Chrome.request = request
-Ie.request = request
-Opera.request = request
-Safari.request = request
-PhantomJS.request = request
-Android.request = request
-Remote.request = request
+class RequestMixin(object):
+    request = request
+
+
+class Firefox(Firefox, RequestMixin):
+    pass
+
+
+class Chrome(Chrome, RequestMixin):
+    pass
+
+
+class Ie(Ie, RequestMixin):
+    pass
+
+
+class Opera(Opera, RequestMixin):
+    pass
+
+
+class Safari(Safari, RequestMixin):
+    pass
+
+
+class PhantomJS(PhantomJS, RequestMixin):
+    pass
+
+
+class Android(Android, RequestMixin):
+    pass
+
+
+class Remote(Remote, RequestMixin):
+    pass
