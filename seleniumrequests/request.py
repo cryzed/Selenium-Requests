@@ -147,3 +147,7 @@ def request(self, method, url, **kwargs):
         self.switch_to.window(original_window_handle)
 
     return response
+
+
+class RequestMixin(object):
+    request = request

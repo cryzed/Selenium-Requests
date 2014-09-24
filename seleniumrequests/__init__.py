@@ -1,10 +1,6 @@
 from selenium.webdriver import Firefox, Chrome, Ie, Opera, Safari, PhantomJS, Android, Remote
 
-from .request import request
-
-
-class RequestMixin(object):
-    request = request
+from .request import RequestMixin
 
 
 class Firefox(Firefox, RequestMixin):
