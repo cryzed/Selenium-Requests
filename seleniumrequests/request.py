@@ -5,6 +5,8 @@ import urlparse
 
 import requests
 
+from selenium.common.exceptions import NoSuchWindowException
+
 _headers = None
 _update_headers_mutex = threading.Semaphore()
 _update_headers_mutex.acquire()
@@ -87,6 +89,20 @@ def _find_window_handle(webdriver, callback):
     webdriver.switch_to.window(original_window_handle)
 
 
+def _make_find_domain_condition(webdriver, requested_domain):
+    def condition(webdriver):
+        try:
+            return _get_domain(webdriver.current_url) == requested_domain
+
+        # This exception can apparently occur in PhantomJS if the window handle
+        # wasn't closed "properly", which seems to happen sometimes due to the
+        # JavaScript returned by the _HTTPRequestHandler
+        except NoSuchWindowException:
+            pass
+
+    return condition
+
+
 class RequestMixin(object):
     def request(self, method, url, **kwargs):
         # Create a requests session object for this instance that sends the
@@ -107,7 +123,7 @@ class RequestMixin(object):
 
             # Try to find an existing window handle that matches the requested
             # domain
-            condition = lambda webdriver: _get_domain(webdriver.current_url) == requested_domain
+            condition = _make_find_domain_condition(self, requested_domain)
             window_handle = _find_window_handle(self, condition)
 
             # Create a new window handle manually in case it wasn't found
