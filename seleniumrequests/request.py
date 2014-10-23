@@ -118,6 +118,11 @@ class RequestMixin(object):
         original_window_handle = None
         opened_window_handle = None
         requested_domain = _get_domain(url)
+
+        # If a NoSuchWindowException occurs here (see
+        # _make_find_domain_condition) it's the concern of the calling code to
+        # handle it, since the exception is only potentially generated
+        # internally by _get_webdriver_request_headers
         if not _get_domain(self.current_url) == requested_domain:
             original_window_handle = self.current_window_handle
 
