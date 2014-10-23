@@ -51,9 +51,17 @@ def _get_webdriver_request_headers(webdriver):
             port = _get_unused_port()
 
     threading.Thread(target=server.handle_request).start()
+    original_window_handle = webdriver.current_window_handle
     webdriver.execute_script("window.open('http://127.0.0.1:%d/');" % port)
 
     _update_headers_mutex.acquire()
+
+    # Possibly optional: Make sure that the webdriver didn't switch the window
+    # handle to the newly opened window. Behaviors of different webdrivers seem
+    # to differ greatly here
+    if webdriver.current_window_handle != original_window_handle:
+        webdriver.switch_to.window(original_window_handle)
+
     global _headers
     headers = _headers
     _headers = None
