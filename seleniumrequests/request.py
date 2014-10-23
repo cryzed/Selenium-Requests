@@ -148,28 +148,3 @@ class RequestMixin(object):
             self.switch_to.window(original_window_handle)
 
         return response
-
-    # Make all requests API functions directly available.
-    def requests_get(self, url, **kwargs):
-        kwargs.setdefault('allow_redirects', True)
-        return self.request('get', url, **kwargs)
-
-    def options(self, url, **kwargs):
-        kwargs.setdefault('allow_redirects', True)
-        return self.request('options', url, **kwargs)
-
-    def head(self, url, **kwargs):
-        kwargs.setdefault('allow_redirects', False)
-        return self.request('head', url, **kwargs)
-
-    def post(self, url, data=None, json=None, **kwargs):
-        return self.request('post', url, data=data, json=json, **kwargs)
-
-    def put(self, url, data=None, **kwargs):
-        return self.request('put', url, data=data, **kwargs)
-
-    def patch(self, url, data=None, **kwargs):
-        return self.request('patch', url,  data=data, **kwargs)
-
-    def delete(self, url, **kwargs):
-        return self.request('delete', url, **kwargs)
