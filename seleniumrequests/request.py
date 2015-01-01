@@ -116,9 +116,9 @@ class RequestMixin(object):
         # Create a requests session object for this instance that sends the
         # webdriver's default request headers
         if not hasattr(self, '_seleniumrequests_request_headers'):
-            self._betterselenium_request_headers = _get_webdriver_request_headers(self)
+            self._seleniumrequests_request_headers = _get_webdriver_request_headers(self)
 
-        headers = self._betterselenium_request_headers.copy()
+        headers = self._seleniumrequests_request_headers.copy()
         if 'headers' in kwargs:
             headers.update(kwargs['headers'])
         kwargs['headers'] = headers
