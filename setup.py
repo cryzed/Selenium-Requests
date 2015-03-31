@@ -26,7 +26,8 @@ setup(
     install_requires=(
         'requests',
         'selenium',
-        'six'
+        'six',
+        'tld'
     ),
     license='MIT'
 )

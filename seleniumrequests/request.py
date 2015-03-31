@@ -5,6 +5,7 @@ from six.moves import BaseHTTPServer
 from six.moves.urllib.parse import urlparse
 import requests
 import six
+import tld
 
 from selenium.common.exceptions import NoSuchWindowException
 
@@ -84,7 +85,12 @@ def _prepare_requests_cookies(webdriver_cookies):
 
 
 def _get_domain(url):
-    return '.'.join(urlparse(url).netloc.rsplit('.', 2)[-2:])
+    try:
+        domain = tld.get_tld(url)
+    except (tld.exceptions.TldBadUrl, tld.exceptions.TldDomainNotFound):
+        return url
+
+    return domain
 
 
 def _find_window_handle(webdriver, callback):
