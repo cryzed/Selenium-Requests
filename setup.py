@@ -15,7 +15,7 @@ else:
 
 setup(
     name='selenium-requests',
-    version='1.0.1',
+    version='1.0.2',
     description='Extends Selenium WebDriver classes to include the request function from the Requests library, while doing all the needed cookie and request headers handling.',
     long_description=long_description,
     author='Chris Braun',
