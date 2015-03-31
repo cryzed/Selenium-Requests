@@ -1,11 +1,13 @@
-import BaseHTTPServer
 import socket
 import threading
-import urlparse
 
+from six.moves import BaseHTTPServer
+from six.moves.urllib.parse import urlparse
 import requests
+import six
 
 from selenium.common.exceptions import NoSuchWindowException
+
 
 _headers = None
 _update_headers_mutex = threading.Semaphore()
@@ -16,14 +18,19 @@ _update_headers_mutex.acquire()
 # be the easiest way to get access to it, since the HTTPServer doesn't keep an
 # object of the instance of the _HTTPRequestHandler
 class _HTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
+
     def do_GET(self):
         global _headers
-        _headers = self.headers.dict
+
+        # Python 2's HTTPMessage class contains the actual data in its
+        # "dict"-attribute, whereas in Python 3 HTTPMessage is itself the
+        # container. Treat headers as case-insensitive
+        _headers = requests.structures.CaseInsensitiveDict(self.headers if six.PY3 else self.headers.dict)
         _update_headers_mutex.release()
 
         self.send_response(200)
         self.end_headers()
-        self.wfile.write('<script type="text/javascript">window.close();</script>')
+        self.wfile.write(six.b('<script type="text/javascript">window.close();</script>'))
 
     # Suppress unwanted logging to stderr
     def log_message(*args, **kwargs):
@@ -66,6 +73,8 @@ def _get_webdriver_request_headers(webdriver):
     headers = _headers
     _headers = None
 
+    # Remove the Host-header which will simply contain the localhost address of
+    # the _HTTPRequestHandler instance
     del headers['host']
     return headers
 
@@ -75,7 +84,7 @@ def _prepare_requests_cookies(webdriver_cookies):
 
 
 def _get_domain(url):
-    return '.'.join(urlparse.urlparse(url).netloc.rsplit('.', 2)[-2:])
+    return '.'.join(urlparse(url).netloc.rsplit('.', 2)[-2:])
 
 
 def _find_window_handle(webdriver, callback):
@@ -112,6 +121,7 @@ def _make_find_domain_condition(webdriver, requested_domain):
 
 
 class RequestMixin(object):
+
     def request(self, method, url, **kwargs):
         # Create a requests session object for this instance that sends the
         # webdriver's default request headers
@@ -141,7 +151,7 @@ class RequestMixin(object):
 
             # Create a new window handle manually in case it wasn't found
             if window_handle is None:
-                components = urlparse.urlparse(url)
+                components = urlparse(url)
                 self.execute_script("window.open('http://%s');" % components.netloc)
                 opened_window_handle = _find_window_handle(self, condition)
 
