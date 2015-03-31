@@ -131,13 +131,9 @@ class RequestMixin(object):
     def request(self, method, url, **kwargs):
         # Create a requests session object for this instance that sends the
         # webdriver's default request headers
-        if not hasattr(self, '_seleniumrequests_request_headers'):
-            self._seleniumrequests_request_headers = _get_webdriver_request_headers(self)
-
-        headers = self._seleniumrequests_request_headers.copy()
-        if 'headers' in kwargs:
-            headers.update(kwargs['headers'])
-        kwargs['headers'] = headers
+        if not hasattr(self, '_seleniumrequests_session'):
+            self._seleniumrequests_session = requests.Session()
+            self._seleniumrequests_session.headers = _get_webdriver_request_headers(self)
 
         original_window_handle = None
         opened_window_handle = None
@@ -173,7 +169,7 @@ class RequestMixin(object):
             cookies.update(kwargs['cookies'])
         kwargs['cookies'] = cookies
 
-        response = requests.request(method, url, **kwargs)
+        response = self._seleniumrequests_session.request(method, url, **kwargs)
 
         # Set cookies set by the HTTP response within the webdriver instance
         for cookie in response.cookies:
