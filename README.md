@@ -1,4 +1,4 @@
-Selenium-Requests
+Selenium Requests
 =================
 
 Extends Selenium WebDriver classes to include the [request](http://docs.python-requests.org/en/latest/api/#requests.request) function from the [Requests](http://python-requests.org/) library, while doing all the needed cookie and request headers handling.
