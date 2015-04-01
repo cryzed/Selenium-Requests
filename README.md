@@ -10,6 +10,11 @@ Details
 Before the actual request is made, a local HTTP server is started that serves a single request made by the webdriver instance to get the "standard" HTTP request headers sent by this webdriver; these are cached (only happens once during its lifetime) and later used in conjunction with the Requests library to make the requests look identical to those that would have been sent by the webdriver. Cookies held by the webdriver instance are added to the request headers and those returned in a response automatically set for the webdriver instance.
 
 
+Installation
+------------
+```pip install selenium-requests```
+
+
 Usage
 -----
 ```python
@@ -22,3 +27,4 @@ webdriver = Firefox()
 response = webdriver.request('GET', 'http://google.de/')
 print(response)
 ```
+
