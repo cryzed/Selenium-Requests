@@ -22,12 +22,21 @@ setup(
     author_email='cryzed@googlemail.com',
     url='https://github.com/cryzed/Selenium-Requests',
     packages=('seleniumrequests',),
-    zip_safe=False,
     install_requires=(
         'requests',
         'selenium',
         'six',
         'tld'
     ),
-    license='MIT'
+    license='MIT',
+    zip_safe=False,
+    classifiers=(
+        'Development Status :: 5 - Production/Stable',
+        'Intended Audience :: Developers',
+        'Natural Language :: English',
+        'License :: OSI Approved :: MIT License',
+        'Programming Language :: Python',
+        'Programming Language :: Python :: 2',
+        'Programming Language :: Python :: 3'
+    )
 )
