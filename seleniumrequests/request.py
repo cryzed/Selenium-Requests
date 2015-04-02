@@ -107,7 +107,7 @@ def _find_window_handle(webdriver, callback):
         try:
             webdriver.switch_to.window(window_handle)
         except NoSuchWindowException:
-            pass
+            continue
 
         if callback(webdriver):
             return window_handle

@@ -27,4 +27,3 @@ webdriver = Firefox()
 response = webdriver.request('GET', 'http://google.com/')
 print(response)
 ```
-
