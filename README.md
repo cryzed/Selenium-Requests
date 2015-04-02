@@ -24,7 +24,7 @@ from seleniumrequests import Firefox
 
 
 webdriver = Firefox()
-response = webdriver.request('GET', 'http://google.de/')
+response = webdriver.request('GET', 'http://google.com/')
 print(response)
 ```
 
