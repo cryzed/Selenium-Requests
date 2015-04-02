@@ -34,7 +34,7 @@ class _HTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         self.wfile.write(six.b('<script type="text/javascript">window.close();</script>'))
 
     # Suppress unwanted logging to stderr
-    def log_message(*args, **kwargs):
+    def log_message(self, format, *args):
         pass
 
 
@@ -47,16 +47,15 @@ def _get_unused_port():
 
 
 def _get_webdriver_request_headers(webdriver):
-    port = _get_unused_port()
-
     # There's a small chance that the port was taken since the call of
     # _get_unused_port()
     while True:
+        port = _get_unused_port()
         try:
             server = BaseHTTPServer.HTTPServer(('', port), _HTTPRequestHandler)
             break
         except socket.error:
-            port = _get_unused_port()
+            pass
 
     threading.Thread(target=server.handle_request).start()
     original_window_handle = webdriver.current_window_handle
@@ -103,7 +102,13 @@ def _find_window_handle(webdriver, callback):
     window_handles = webdriver.window_handles[::-1]
     window_handles.remove(original_window_handle)
     for window_handle in window_handles:
-        webdriver.switch_to.window(window_handle)
+        # It's possible that one of the valid window handles is closed during
+        # checking
+        try:
+            webdriver.switch_to.window(window_handle)
+        except NoSuchWindowException:
+            pass
+
         if callback(webdriver):
             return window_handle
 
@@ -157,8 +162,8 @@ class RequestMixin(object):
                 self.execute_script("window.open('http://%s');" % components.netloc)
                 opened_window_handle = _find_window_handle(self, condition)
 
-                # Some webdrivers take some time until the new window handle has
-                # loaded the correct URL
+                # Some webdrivers take some time until the new window handle
+                # has loaded the correct URL
                 while opened_window_handle is None:
                     opened_window_handle = _find_window_handle(self, condition)
 
