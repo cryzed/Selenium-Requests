@@ -4,6 +4,5 @@ pypandoc==0.9.6
 pytest==2.7.0
 requests==2.6.0
 selenium==2.45.0
-selenium-requests==1.0.4
 six==1.9.0
 tld==0.7.2
