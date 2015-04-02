@@ -10,24 +10,24 @@ import tld
 from selenium.common.exceptions import NoSuchWindowException
 
 
-_headers = None
-_update_headers_mutex = threading.Semaphore()
-_update_headers_mutex.acquire()
+headers = None
+update_headers_mutex = threading.Semaphore()
+update_headers_mutex.acquire()
 
 
 # Using a global value to pass around the headers dictionary reference seems to
 # be the easiest way to get access to it, since the HTTPServer doesn't keep an
-# object of the instance of the _HTTPRequestHandler
-class _HTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
+# object of the instance of the HTTPRequestHandler
+class HTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
     def do_GET(self):
-        global _headers
+        global headers
 
         # Python 2's HTTPMessage class contains the actual data in its
         # "dict"-attribute, whereas in Python 3 HTTPMessage is itself the
         # container. Treat headers as case-insensitive
-        _headers = requests.structures.CaseInsensitiveDict(self.headers if six.PY3 else self.headers.dict)
-        _update_headers_mutex.release()
+        headers = requests.structures.CaseInsensitiveDict(self.headers if six.PY3 else self.headers.dict)
+        update_headers_mutex.release()
 
         self.send_response(200)
         self.end_headers()
@@ -38,7 +38,7 @@ class _HTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         pass
 
 
-def _get_unused_port():
+def get_unused_port():
     socket_ = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     socket_.bind(('', 0))
     address, port = socket_.getsockname()
@@ -46,13 +46,13 @@ def _get_unused_port():
     return port
 
 
-def _get_webdriver_request_headers(webdriver):
+def get_webdriver_request_headers(webdriver):
     # There's a small chance that the port was taken since the call of
-    # _get_unused_port()
+    # get_unused_port()
     while True:
-        port = _get_unused_port()
+        port = get_unused_port()
         try:
-            server = BaseHTTPServer.HTTPServer(('', port), _HTTPRequestHandler)
+            server = BaseHTTPServer.HTTPServer(('', port), HTTPRequestHandler)
             break
         except socket.error:
             pass
@@ -61,7 +61,7 @@ def _get_webdriver_request_headers(webdriver):
     original_window_handle = webdriver.current_window_handle
     webdriver.execute_script("window.open('http://127.0.0.1:%d/');" % port)
 
-    _update_headers_mutex.acquire()
+    update_headers_mutex.acquire()
 
     # Possibly optional: Make sure that the webdriver didn't switch the window
     # handle to the newly opened window. Behaviors of different webdrivers seem
@@ -69,21 +69,21 @@ def _get_webdriver_request_headers(webdriver):
     if webdriver.current_window_handle != original_window_handle:
         webdriver.switch_to.window(original_window_handle)
 
-    global _headers
-    headers = _headers
-    _headers = None
+    global headers
+    headers_ = headers
+    headers = None
 
     # Remove the Host-header which will simply contain the localhost address of
-    # the _HTTPRequestHandler instance
-    del headers['host']
-    return headers
+    # the HTTPRequestHandler instance
+    del headers_['host']
+    return headers_
 
 
-def _prepare_requests_cookies(webdriver_cookies):
+def prepare_requests_cookies(webdriver_cookies):
     return dict((str(cookie['name']), str(cookie['value'])) for cookie in webdriver_cookies)
 
 
-def _get_domain(url):
+def get_domain(url):
     try:
         domain = tld.get_tld(url)
     except (tld.exceptions.TldBadUrl, tld.exceptions.TldDomainNotFound):
@@ -92,7 +92,7 @@ def _get_domain(url):
     return domain
 
 
-def _find_window_handle(webdriver, callback):
+def find_window_handle(webdriver, callback):
     original_window_handle = webdriver.current_window_handle
     if callback(webdriver):
         return original_window_handle
@@ -117,14 +117,14 @@ def _find_window_handle(webdriver, callback):
     webdriver.switch_to.window(original_window_handle)
 
 
-def _make_find_domain_condition(webdriver, requested_domain):
+def make_find_domain_condition(webdriver, requested_domain):
     def condition(webdriver):
         try:
-            return _get_domain(webdriver.current_url) == requested_domain
+            return get_domain(webdriver.current_url) == requested_domain
 
         # This exception can apparently occur in PhantomJS if the window handle
         # wasn't closed "properly", which seems to happen sometimes due to the
-        # JavaScript returned by the _HTTPRequestHandler
+        # JavaScript returned by the HTTPRequestHandler
         except NoSuchWindowException:
             pass
 
@@ -138,38 +138,38 @@ class RequestMixin(object):
         # webdriver's default request headers
         if not hasattr(self, '_seleniumrequests_session'):
             self._seleniumrequests_session = requests.Session()
-            self._seleniumrequests_session.headers = _get_webdriver_request_headers(self)
+            self._seleniumrequests_session.headers = get_webdriver_request_headers(self)
 
         original_window_handle = None
         opened_window_handle = None
-        requested_domain = _get_domain(url)
+        requested_domain = get_domain(url)
 
         # If a NoSuchWindowException occurs here (see
-        # _make_find_domain_condition) it's the concern of the calling code to
+        # make_find_domain_condition) it's the concern of the calling code to
         # handle it, since the exception is only potentially generated
-        # internally by _get_webdriver_request_headers
-        if not _get_domain(self.current_url) == requested_domain:
+        # internally by get_webdriver_request_headers
+        if not get_domain(self.current_url) == requested_domain:
             original_window_handle = self.current_window_handle
 
             # Try to find an existing window handle that matches the requested
             # domain
-            condition = _make_find_domain_condition(self, requested_domain)
-            window_handle = _find_window_handle(self, condition)
+            condition = make_find_domain_condition(self, requested_domain)
+            window_handle = find_window_handle(self, condition)
 
             # Create a new window handle manually in case it wasn't found
             if window_handle is None:
                 components = urlparse(url)
                 self.execute_script("window.open('http://%s/');" % components.netloc)
-                opened_window_handle = _find_window_handle(self, condition)
+                opened_window_handle = find_window_handle(self, condition)
 
                 # Some webdrivers take some time until the new window handle
                 # has loaded the correct URL
                 while opened_window_handle is None:
-                    opened_window_handle = _find_window_handle(self, condition)
+                    opened_window_handle = find_window_handle(self, condition)
 
         # Acquire webdriver's instance cookies and merge them with potentially
         # passed cookies
-        cookies = _prepare_requests_cookies(self.get_cookies())
+        cookies = prepare_requests_cookies(self.get_cookies())
         if 'cookies' in kwargs:
             cookies.update(kwargs['cookies'])
         kwargs['cookies'] = cookies
