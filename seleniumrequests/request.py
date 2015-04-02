@@ -159,7 +159,7 @@ class RequestMixin(object):
             # Create a new window handle manually in case it wasn't found
             if window_handle is None:
                 components = urlparse(url)
-                self.execute_script("window.open('http://%s');" % components.netloc)
+                self.execute_script("window.open('http://%s/');" % components.netloc)
                 opened_window_handle = _find_window_handle(self, condition)
 
                 # Some webdrivers take some time until the new window handle
