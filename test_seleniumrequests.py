@@ -27,6 +27,23 @@ class EchoHeaderRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         self.end_headers()
 
         # This is needed so the WebDriver instance allows setting of cookies
+        self.wfile.write(six.b('<script type="text/javascript">window.close();</script>'))
+
+    # Suppress unwanted logging to stderr
+    def log_message(self, format, *args):
+        pass
+
+
+class SetCookieRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
+
+    def do_GET(self):
+        self.send_response(200)
+        if 'Set-Cookie' in (self.headers if six.PY3 else self.headers.dict):
+            self.send_header('Set-Cookie', 'Some=Cookie')
+
+        self.end_headers()
+
+        # This is needed so the WebDriver instance allows setting of cookies
         self.wfile.write(six.b('<html></html>'))
 
     # Suppress unwanted logging to stderr
@@ -78,7 +95,6 @@ def test_headers():
 
     webdriver = Firefox()
     server_url = 'http://127.0.0.1:%d/' % port
-    webdriver.get(server_url)
 
     # TODO: Add more cookie examples with additional fields, such as
     # expires, path, comment, max-age, secure, version, httponly
@@ -87,6 +103,9 @@ def test_headers():
         {'name': 'Another', 'value': 'Cookie'}
     )
 
+    # Open the server URL with the WebDriver instance initially so wen can set
+    # custom cookies
+    webdriver.get(server_url)
     for cookie in cookies:
         webdriver.add_cookie(cookie)
 
@@ -121,5 +140,41 @@ def test_headers():
 
     # Check if the additional cookie was sent as well
     assert 'Extra' in cookies and cookies['Extra'].value == 'Cookie'
+
+    webdriver.quit()
+
+
+def test_set_cookie():
+    while True:
+        port = get_unused_port()
+        try:
+            server = BaseHTTPServer.HTTPServer(('', port), SetCookieRequestHandler)
+            break
+        except socket.error:
+            pass
+
+    def handle_requests():
+        while True:
+            server.handle_request()
+
+    thread = threading.Thread(target=handle_requests)
+
+    # Set daemon attribute after instantiating thread object to stay compatible
+    # with Python 2
+    thread.daemon = True
+    thread.start()
+
+    webdriver = Firefox()
+    server_url = 'http://127.0.0.1:%d/' % port
+
+    # Make sure that the WebDriver itself doesn't receive the Set-Cookie
+    # header, instead the requests request should receive it and set it
+    # manually within the WebDriver instance.
+    webdriver.request('GET', server_url, headers={'Set-Cookie': ''})
+
+    # Open the URL so that we can actually get the cookies
+    webdriver.get(server_url)
+    cookie = webdriver.get_cookies()[0]
+    assert cookie['name'] == 'Some' and cookie['value'] == 'Cookie'
 
     webdriver.quit()
