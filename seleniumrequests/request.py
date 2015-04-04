@@ -1,5 +1,7 @@
 import socket
 import threading
+import warnings
+import time
 
 from six.moves import BaseHTTPServer
 from six.moves.urllib.parse import urlparse
@@ -7,8 +9,14 @@ import requests
 import six
 import tld
 
-from selenium.common.exceptions import NoSuchWindowException
+from selenium.common.exceptions import NoSuchWindowException, TimeoutException, WebDriverException
 
+
+FIND_WINDOW_HANDLE_WARNING = (
+    'Created window handle could not be found reliably. Using less reliable '
+    'alternative method. JavaScript redirects are not supported and an '
+    'additional GET request might be made to the requested domain.'
+)
 
 headers = None
 update_headers_mutex = threading.Semaphore()
@@ -101,15 +109,16 @@ def find_window_handle(webdriver, callback):
 
     # Start search beginning with the most recently added window handle, the
     # chance is higher that this is the correct one in most cases
-    window_handles = webdriver.window_handles[::-1]
-    window_handles.remove(original_window_handle)
-    for window_handle in window_handles:
+    for window_handle in reversed(webdriver.window_handles):
+        if window_handle == original_window_handle:
+            continue
+
         # It's possible that one of the valid window handles is closed during
         # checking
         try:
             webdriver.switch_to.window(window_handle)
         except NoSuchWindowException:
-            continue
+            pass
 
         if callback(webdriver):
             return window_handle
@@ -135,7 +144,7 @@ def make_find_domain_condition(webdriver, requested_domain):
 
 class RequestMixin(object):
 
-    def request(self, method, url, **kwargs):
+    def request(self, method, url, find_window_handle_timeout=30, page_load_timeout=30, **kwargs):
         # Create a requests session object for this instance that sends the
         # webdriver's default request headers
         if not hasattr(self, '_seleniumrequests_session'):
@@ -151,7 +160,6 @@ class RequestMixin(object):
         original_window_handle = None
         opened_window_handle = None
         requested_domain = get_domain(url)
-
         # If a NoSuchWindowException occurs here (see
         # make_find_domain_condition) it's the concern of the calling code to
         # handle it, since the exception is only potentially generated
@@ -165,15 +173,39 @@ class RequestMixin(object):
             window_handle = find_window_handle(self, condition)
 
             # Create a new window handle manually in case it wasn't found
-            if window_handle is None:
+            if not window_handle:
                 components = urlparse(url)
-                self.execute_script("window.open('http://%s/');" % components.netloc)
-                opened_window_handle = find_window_handle(self, condition)
 
-                # Some webdrivers take some time until the new window handle
-                # has loaded the correct URL
-                while opened_window_handle is None:
+                previous_window_handles = set(self.window_handles)
+                self.execute_script("window.open('%s://%s/');" % (components.scheme, components.netloc))
+                difference = set(self.window_handles) - set(previous_window_handles)
+
+                if len(difference) == 1:
+                    opened_window_handle = tuple(difference)[0]
+
+                    # Will automatically wait until the new window handle has
+                    # finished loading
+                    self.switch_to.window(opened_window_handle)
+                else:
+                    warnings.warn(FIND_WINDOW_HANDLE_WARNING)
                     opened_window_handle = find_window_handle(self, condition)
+
+                    # Window handle could not be found during first pass.
+                    # Either the WebDriver didn't wait for the page load
+                    # (PhantomJS) or there was a redirect
+                    if not opened_window_handle:
+                        response = self._seleniumrequests_session.get(url, stream=True)
+                        domain = tld.get_tld(response.url)
+                        if domain != requested_domain:
+                            condition = make_find_domain_condition(self, get_domain(response.url))
+
+                    # Some webdrivers (PhantomJS) take some time until the new
+                    # window handle has loaded the correct URL
+                    start = time.time()
+                    while not opened_window_handle:
+                        opened_window_handle = find_window_handle(self, condition)
+                        if find_window_handle_timeout >= 0 and time.time() - start > find_window_handle_timeout:
+                            raise TimeoutException('window handle could not be found')
 
         # Acquire webdriver's instance cookies and merge them with potentially
         # passed cookies
@@ -187,18 +219,27 @@ class RequestMixin(object):
         # Set cookies set by the HTTP response within the webdriver instance
         for cookie in response.cookies:
             cookie_dict = {'name': cookie.name, 'value': cookie.value, 'secure': cookie.secure}
-            if cookie.expires is not None:
+            if cookie.expires:
                 cookie_dict['expiry'] = cookie.expires
             if cookie.path_specified:
                 cookie_dict['path'] = cookie.path
-            if cookie.domain_specified:
-                cookie_dict['domain'] = cookie.domain
-            self.add_cookie(cookie_dict)
 
-        if opened_window_handle is not None:
+            # PhantomJS's GhostDriver doesn't block until the active window has
+            # loaded, thus we have to do this:
+            start = time.time()
+            while page_load_timeout < 0 or time.time() - start <= page_load_timeout:
+                try:
+                    self.add_cookie(cookie_dict)
+                    break
+                except WebDriverException:
+                    pass
+            else:
+                raise TimeoutException('page took too long to load')
+
+        if opened_window_handle:
             self.close()
 
-        if original_window_handle is not None:
+        if original_window_handle:
             self.switch_to.window(original_window_handle)
 
         return response

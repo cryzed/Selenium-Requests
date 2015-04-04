@@ -12,6 +12,18 @@ import six
 ENCODING = 'UTF-8'
 
 
+class DummyRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
+
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(six.b('<html></html>'))
+
+    # Suppress unwanted logging to stderr
+    def log_message(self, format, *args):
+        pass
+
+
 class EchoHeaderRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
     def do_GET(self):
@@ -23,7 +35,7 @@ class EchoHeaderRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
         # Send JSON data in a header instead of the body field, because some
         # browsers add additional markup which is ugly to parse out
-        self.send_header('Echo', data)
+        self.send_header('echo', data)
         self.end_headers()
 
         # This is needed so the WebDriver instance allows setting of cookies
@@ -39,7 +51,7 @@ class SetCookieRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
         if 'set-cookie' in (self.headers if six.PY3 else self.headers.dict):
-            self.send_header('set-cookie', 'Some=Cookie')
+            self.send_header('set-cookie', 'some=cookie')
 
         self.end_headers()
 
@@ -51,24 +63,52 @@ class SetCookieRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         pass
 
 
+def run_http_server(request_handler_class):
+    while True:
+        port = get_unused_port()
+        try:
+            server = BaseHTTPServer.HTTPServer(('', port), request_handler_class)
+            break
+        except socket.error:
+            pass
+
+    def run():
+        while True:
+            server.handle_request()
+
+    thread = threading.Thread(target=run)
+    thread.daemon = True
+    thread.start()
+
+    return 'http://127.0.0.1:%d/' % port
+
+
+dummy_server = run_http_server(DummyRequestHandler)
+echo_header_server = run_http_server(EchoHeaderRequestHandler)
+set_cookie_server = run_http_server(SetCookieRequestHandler)
+
+
+# TODO: Preferably only use websites served by the localhost
 def make_window_handling_test(webdriver_class):
-    # TODO: Preferably only use websites served by the localhost
     def test_window_handling():
         webdriver = webdriver_class()
-        webdriver.get('https://www.google.com/')
-        original_window_handle = webdriver.current_window_handle
+        webdriver.get(dummy_server)
 
-        webdriver.execute_script("window.open('https://www.facebook.com/');")
+        original_window_handle = webdriver.current_window_handle
+        webdriver.execute_script("window.open('%s');" % dummy_server)
         original_window_handles = set(webdriver.window_handles)
 
-        webdriver.request('GET', 'https://www.youtube.com/')
+        # We need a different domain here to test the correct behaviour. Using
+        # localhost isn't fool-proof because the hosts file is editable, so
+        # make the most reliable choice we can: Google
+        webdriver.request('GET', 'http://google.com/')
 
-        # Make sure that the window handle was switched back to the original one
-        # after making a request that caused a new window to open
+        # Make sure that the window handle was switched back to the original
+        # one after making a request that caused a new window to open
         assert webdriver.current_window_handle == original_window_handle
 
-        # Make sure that all additional window handles that were opened during the
-        # request were closed again
+        # Make sure that all additional window handles that were opened during
+        # the request were closed again
         assert set(webdriver.window_handles) == original_window_handles
 
         webdriver.quit()
@@ -78,72 +118,41 @@ def make_window_handling_test(webdriver_class):
 
 def make_headers_test(webdriver_class):
     def test_headers():
-        while True:
-            port = get_unused_port()
-            try:
-                server = BaseHTTPServer.HTTPServer(('', port), EchoHeaderRequestHandler)
-                break
-            except socket.error:
-                pass
-
-        def handle_requests():
-            while True:
-                server.handle_request()
-
-        thread = threading.Thread(target=handle_requests)
-
-        # Set daemon attribute after instantiating thread object to stay compatible
-        # with Python 2
-        thread.daemon = True
-        thread.start()
-
         webdriver = webdriver_class()
-        server_url = 'http://127.0.0.1:%d/' % port
 
         # TODO: Add more cookie examples with additional fields, such as
         # expires, path, comment, max-age, secure, version, httponly
         cookies = (
-            {'name': 'Hello', 'value': 'World'},
-            {'name': 'Another', 'value': 'Cookie'}
+            {'name': 'hello', 'value': 'world'},
+            {'name': 'another', 'value': 'cookie'}
         )
 
-        # Open the server URL with the WebDriver instance initially so wen can set
-        # custom cookies
-        webdriver.get(server_url)
+        # Open the server URL with the WebDriver instance initially so we can
+        # set custom cookies
+        webdriver.get(echo_header_server)
         for cookie in cookies:
             webdriver.add_cookie(cookie)
 
-        response = webdriver.request('GET', server_url, headers={'Extra': 'Header'}, cookies={'Extra': 'Cookie'})
-        sent_headers = requests.structures.CaseInsensitiveDict(json.loads(response.headers['Echo']))
+        response = webdriver.request('GET', echo_header_server, headers={'extra': 'header'}, cookies={'extra': 'cookie'})
+        sent_headers = requests.structures.CaseInsensitiveDict(json.loads(response.headers['echo']))
 
-        # These are the default headers sent for regular browsers, it's
-        # easier to simply check that the values are not empty instead of comparing
-        # them to constants, since those would change frequently with each
-        # iteration of the used browser. Additionally the existence of headers such
-        # as Accept-Language and Referer confirms that these are not simply the
-        # default headers sent by the requests library itself
-        assert 'cookie' in sent_headers and sent_headers['cookie']
-        assert 'accept' in sent_headers and sent_headers['accept']
-        assert 'host' in sent_headers and sent_headers['host']
-        assert 'connection' in sent_headers and sent_headers['connection']
-        assert 'accept-language' in sent_headers and sent_headers['accept-language']
-        assert 'accept-encoding' in sent_headers and sent_headers['accept-encoding']
-        assert 'user-agent' in sent_headers and sent_headers['user-agent']
-        assert 'referer' in sent_headers and sent_headers['referer']
+        # Simply assert that the User-Agent isn't requests' default one, which
+        # means that it and the rest of the headers must have been overwritten
+        assert sent_headers['user-agent'] != requests.utils.default_user_agent()
 
         # Check if the additional header was sent as well
-        assert 'extra' in sent_headers and sent_headers['extra'] == 'Header'
+        assert 'extra' in sent_headers and sent_headers['extra'] == 'header'
 
         cookies = http_cookies.SimpleCookie()
 
         # Python 2's Cookie module expects a string object, not Unicode
-        cookies.load(sent_headers['Cookie'] if six.PY3 else sent_headers['Cookie'].encode(ENCODING))
+        cookies.load(sent_headers['cookie'] if six.PY3 else sent_headers['cookie'].encode(ENCODING))
 
-        assert 'Hello' in cookies and cookies['Hello'].value == 'World'
-        assert 'Another' in cookies and cookies['Another'].value == 'Cookie'
+        assert 'hello' in cookies and cookies['hello'].value == 'world'
+        assert 'another' in cookies and cookies['another'].value == 'cookie'
 
         # Check if the additional cookie was sent as well
-        assert 'Extra' in cookies and cookies['Extra'].value == 'Cookie'
+        assert 'extra' in cookies and cookies['extra'].value == 'cookie'
 
         webdriver.quit()
 
@@ -152,38 +161,18 @@ def make_headers_test(webdriver_class):
 
 def make_set_cookie_test(webdriver_class):
     def test_set_cookie():
-        while True:
-            port = get_unused_port()
-            try:
-                server = BaseHTTPServer.HTTPServer(('', port), SetCookieRequestHandler)
-                break
-            except socket.error:
-                pass
-
-        def handle_requests():
-            while True:
-                server.handle_request()
-
-        thread = threading.Thread(target=handle_requests)
-
-        # Set daemon attribute after instantiating thread object to stay compatible
-        # with Python 2
-        thread.daemon = True
-        thread.start()
-
         webdriver = webdriver_class()
-        server_url = 'http://127.0.0.1:%d/' % port
 
         # Make sure that the WebDriver itself doesn't receive the Set-Cookie
         # header, instead the requests request should receive it and set it
         # manually within the WebDriver instance.
-        webdriver.request('GET', server_url, headers={'set-cookie': ''})
+        webdriver.request('GET', set_cookie_server, headers={'set-cookie': ''})
 
         # Open the URL so that we can actually get the cookies
-        webdriver.get(server_url)
+        webdriver.get(set_cookie_server)
 
         cookie = webdriver.get_cookies()[0]
-        assert cookie['name'] == 'Some' and cookie['value'] == 'Cookie'
+        assert cookie['name'] == 'some' and cookie['value'] == 'cookie'
 
         webdriver.quit()
 
