@@ -1,15 +1,14 @@
 import socket
 import threading
-import warnings
 import time
+import warnings
 
+from selenium.common.exceptions import NoSuchWindowException, TimeoutException, WebDriverException
 from six.moves import BaseHTTPServer
 from six.moves.urllib.parse import urlparse
 import requests
 import six
 import tld
-
-from selenium.common.exceptions import NoSuchWindowException, TimeoutException, WebDriverException
 
 
 FIND_WINDOW_HANDLE_WARNING = (
@@ -118,7 +117,7 @@ def find_window_handle(webdriver, callback):
         try:
             webdriver.switch_to.window(window_handle)
         except NoSuchWindowException:
-            pass
+            continue
 
         if callback(webdriver):
             return window_handle
