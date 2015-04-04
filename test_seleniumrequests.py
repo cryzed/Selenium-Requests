@@ -27,7 +27,7 @@ class EchoHeaderRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         self.end_headers()
 
         # This is needed so the WebDriver instance allows setting of cookies
-        self.wfile.write(six.b('<script type="text/javascript">window.close();</script>'))
+        self.wfile.write(six.b('<html></html>'))
 
     # Suppress unwanted logging to stderr
     def log_message(self, format, *args):
@@ -38,8 +38,8 @@ class SetCookieRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
     def do_GET(self):
         self.send_response(200)
-        if 'Set-Cookie' in (self.headers if six.PY3 else self.headers.dict):
-            self.send_header('Set-Cookie', 'Some=Cookie')
+        if 'set-cookie' in (self.headers if six.PY3 else self.headers.dict):
+            self.send_header('set-cookie', 'Some=Cookie')
 
         self.end_headers()
 
@@ -170,10 +170,11 @@ def test_set_cookie():
     # Make sure that the WebDriver itself doesn't receive the Set-Cookie
     # header, instead the requests request should receive it and set it
     # manually within the WebDriver instance.
-    webdriver.request('GET', server_url, headers={'Set-Cookie': ''})
+    webdriver.request('GET', server_url, headers={'set-cookie': ''})
 
     # Open the URL so that we can actually get the cookies
     webdriver.get(server_url)
+
     cookie = webdriver.get_cookies()[0]
     assert cookie['name'] == 'Some' and cookie['value'] == 'Cookie'
 
