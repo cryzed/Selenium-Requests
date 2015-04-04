@@ -31,6 +31,8 @@ class HTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
         self.send_response(200)
         self.end_headers()
+
+        # Immediately close the window again as soon as it is loaded
         self.wfile.write(six.b('<script type="text/javascript">window.close();</script>'))
 
     # Suppress unwanted logging to stderr
@@ -139,6 +141,12 @@ class RequestMixin(object):
         if not hasattr(self, '_seleniumrequests_session'):
             self._seleniumrequests_session = requests.Session()
             self._seleniumrequests_session.headers = get_webdriver_request_headers(self)
+
+            # Delete Cookie header from the request headers, to prevent
+            # overwriting manually set cookies later. This should only happen
+            # during testing or when working with requests to localhost
+            if 'cookie' in self._seleniumrequests_session.headers:
+                del self._seleniumrequests_session.headers['cookie']
 
         original_window_handle = None
         opened_window_handle = None
