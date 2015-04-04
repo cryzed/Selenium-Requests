@@ -9,6 +9,9 @@ import requests
 import six
 
 
+ENCODING = 'UTF-8'
+
+
 class EchoHeaderRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
     def do_GET(self):
@@ -66,7 +69,13 @@ def test_headers():
         while True:
             server.handle_request()
 
-    threading.Thread(target=handle_requests, daemon=True).start()
+    thread = threading.Thread(target=handle_requests)
+
+    # Set daemon attribute after instantiating thread object to stay compatible
+    # with Python 2
+    thread.daemon = True
+    thread.start()
+
     webdriver = Firefox()
     server_url = 'http://127.0.0.1:%d/' % port
     webdriver.get(server_url)
@@ -103,7 +112,9 @@ def test_headers():
     assert 'extra' in sent_headers and sent_headers['extra'] == 'Header'
 
     cookies = http_cookies.SimpleCookie()
-    cookies.load(sent_headers['Cookie'])
+
+    # Python 2's Cookie module expects a string object, not Unicode
+    cookies.load(sent_headers['Cookie'] if six.PY3 else sent_headers['Cookie'].encode(ENCODING))
 
     assert 'Hello' in cookies and cookies['Hello'].value == 'World'
     assert 'Another' in cookies and cookies['Another'].value == 'Cookie'
