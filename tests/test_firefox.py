@@ -55,9 +55,9 @@ class SetCookieRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 def test_window_handling():
     webdriver = Firefox()
     webdriver.get('https://www.google.com/')
-    webdriver.execute_script("window.open('https://www.facebook.com/');")
-
     original_window_handle = webdriver.current_window_handle
+
+    webdriver.execute_script("window.open('https://www.facebook.com/');")
     original_window_handles = set(webdriver.window_handles)
 
     webdriver.request('GET', 'https://www.youtube.com/')
