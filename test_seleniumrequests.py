@@ -101,7 +101,7 @@ def make_window_handling_test(webdriver_class):
         # We need a different domain here to test the correct behaviour. Using
         # localhost isn't fool-proof because the hosts file is editable, so
         # make the most reliable choice we can: Google
-        webdriver.request('GET', 'http://google.com/')
+        webdriver.request('GET', 'https://www.google.com/')
 
         # Make sure that the window handle was switched back to the original
         # one after making a request that caused a new window to open
