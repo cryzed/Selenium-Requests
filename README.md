@@ -29,8 +29,10 @@ Details
 -------
 
 The request method supports two additional arguments:
-  * ```find_window_handle_timeout``` (default: 30 seconds)
-  * ```page_load_timeout``` (default: 30 seconds)
+  * ```find_window_handle_timeout``` (default: -1 seconds)
+  * ```page_load_timeout``` (default: -1 seconds)
+
+If the timeout is negative, then the script will be allowed to run indefinitely (similarly to Selenium WebDriver's default behaviour)
 
 The first is needed because there is no reliable way to create a new window handle with the Selenium WebDriver interface, so a new handle has to be spawned via JavaScript and subsequently found to be able to get or set cookies with the WebDriver. There are two methods to do this: The first involves simply comparing the set of window handles before and after the JavaScript was executed and finding the difference. If the difference is unreliable (0 or more than 1 window handles found) an alternative less reliable method is used: the top-level domain for each frame is compared to the requested domain. If no results are found, an additional GET request is made to the requested domain to check for a potential redirect. Whether there was a redirect or not, the old or new domain will now be searched for ```find_window_handle_timeout``` seconds until it is either found or a ```TimeoutException``` is raised.
 

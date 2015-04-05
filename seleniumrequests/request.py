@@ -143,7 +143,7 @@ def make_find_domain_condition(webdriver, requested_domain):
 
 class RequestMixin(object):
 
-    def request(self, method, url, find_window_handle_timeout=30, page_load_timeout=30, **kwargs):
+    def request(self, method, url, find_window_handle_timeout=-1, page_load_timeout=-1, **kwargs):
         # Create a requests session object for this instance that sends the
         # webdriver's default request headers
         if not hasattr(self, '_seleniumrequests_session'):
