@@ -29,6 +29,7 @@ Details
 -------
 
 The request method supports two additional arguments:
+
   * ```find_window_handle_timeout``` (default: -1 seconds)
   * ```page_load_timeout``` (default: -1 seconds)
 
