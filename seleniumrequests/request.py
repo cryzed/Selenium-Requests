@@ -241,8 +241,8 @@ class RequestMixin(object):
         # cookies, the WebDriver instance should have and manage all cookies.
         # A possible scenario: Someone is using a WebDriver instance and then
         # decides to delete a certain cookie in some way, during the next
-        # request that is made the old cookie would still be sent by the
-        # session.
+        # request that is made, the old cookie would still be sent by the
+        # session
         self._seleniumrequests_session.cookies.clear()
 
         if opened_window_handle:

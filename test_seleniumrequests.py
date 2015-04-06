@@ -9,9 +9,6 @@ import requests
 import six
 
 
-ENCODING = 'UTF-8'
-
-
 class DummyRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
     def do_GET(self):
@@ -88,7 +85,6 @@ echo_header_server = run_http_server(EchoHeaderRequestHandler)
 set_cookie_server = run_http_server(SetCookieRequestHandler)
 
 
-# TODO: Preferably only use websites served by the localhost
 def make_window_handling_test(webdriver_class):
     def test_window_handling():
         webdriver = webdriver_class()
@@ -146,7 +142,7 @@ def make_headers_test(webdriver_class):
         cookies = http_cookies.SimpleCookie()
 
         # Python 2's Cookie module expects a string object, not Unicode
-        cookies.load(sent_headers['cookie'] if six.PY3 else sent_headers['cookie'].encode(ENCODING))
+        cookies.load(sent_headers['cookie'] if six.PY3 else sent_headers['cookie'].encode('ASCII'))
 
         assert 'hello' in cookies and cookies['hello'].value == 'world'
         assert 'another' in cookies and cookies['another'].value == 'cookie'
@@ -159,8 +155,8 @@ def make_headers_test(webdriver_class):
     return test_headers
 
 
-def make_set_cookie_test(webdriver_class):
-    def test_set_cookie():
+def make_cookie_test(webdriver_class):
+    def test_cookies():
         webdriver = webdriver_class()
 
         # Make sure that the WebDriver itself doesn't receive the Set-Cookie
@@ -174,19 +170,23 @@ def make_set_cookie_test(webdriver_class):
         cookie = webdriver.get_cookies()[0]
         assert cookie['name'] == 'some' and cookie['value'] == 'cookie'
 
+        # Ensure that the Requests session cookies were cleared and only
+        # cookies directly taken from the WebDriver instance are used
+        assert not webdriver._seleniumrequests_session.cookies
+
         webdriver.quit()
 
-    return test_set_cookie
+    return test_cookies
 
 
 test_firefox_window_handling = make_window_handling_test(Firefox)
 test_firefox_headers = make_headers_test(Firefox)
-test_firefox_set_cookie = make_set_cookie_test(Firefox)
+test_firefox_set_cookie = make_cookie_test(Firefox)
 
 test_chrome_window_handling = make_window_handling_test(Chrome)
 test_chrome_headers = make_headers_test(Chrome)
-test_chrome_set_cookie = make_set_cookie_test(Chrome)
+test_chrome_set_cookie = make_cookie_test(Chrome)
 
 test_phantomjs_window_handling = make_window_handling_test(PhantomJS)
 test_phantomjs_headers = make_headers_test(PhantomJS)
-test_phantomjs_set_cookie = make_set_cookie_test(PhantomJS)
+test_phantomjs_set_cookie = make_cookie_test(PhantomJS)
