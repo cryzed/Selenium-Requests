@@ -235,6 +235,16 @@ class RequestMixin(object):
             else:
                 raise TimeoutException('page took too long to load')
 
+        # We don't actually want to keep cookies in the RequestCookieJar, the
+        # session object is mostly useful for performance when making requests
+        # (persistent connections to the host). After transferring the response
+        # cookies, the WebDriver instance should have and manage all cookies.
+        # A possible scenario: Someone is using a WebDriver instance and then
+        # decides to delete a certain cookie in some way, during the next
+        # request that is made the old cookie would still be sent by the
+        # session.
+        self._seleniumrequests_session.cookies.clear()
+
         if opened_window_handle:
             self.close()
 
