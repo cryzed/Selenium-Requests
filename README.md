@@ -6,6 +6,16 @@ Extends Selenium WebDriver classes to include the [request](http://docs.python-r
 Before the actual request is made, a local HTTP server is started that serves a single request made by the webdriver instance to get the "standard" HTTP request headers sent by this webdriver; these are cached (only happens once during its lifetime) and later used in conjunction with the Requests library to make the requests look identical to those that would have been sent by the webdriver. Cookies held by the webdriver instance are added to the request headers and those returned in a response automatically set for the webdriver instance.
 
 
+Features
+--------
+
+ * Sends the "default" HTTP headers for the chosen WebDriver
+ * Manages cookies bidirectionally: Requests <-> Selenium
+ * Switches to an already existing window handle, or creates a temporary new one to work with cookies when making a request
+ * All operations preserve the original state (active window handle and window handles) of the WebDriver
+ * Tested to work with Mozilla Firefox, Google Chrome and PhantomJS
+
+
 Usage
 -----
 ```python
@@ -44,8 +54,8 @@ Details
 
 The request method supports two additional arguments:
 
-  * ```find_window_handle_timeout``` (default: -1 seconds)
-  * ```page_load_timeout``` (default: -1 seconds)
+ * ```find_window_handle_timeout``` (default: -1 seconds)
+ * ```page_load_timeout``` (default: -1 seconds)
 
 If the timeout is negative, then the script will be allowed to run indefinitely (similarly to Selenium WebDriver's default behaviour).
 
