@@ -13,9 +13,23 @@ Usage
 # selenium.webdriver from the seleniumrequests module
 from seleniumrequests import Firefox
 
-
+# Simple usage with built-in WebDrivers:
 webdriver = Firefox()
-response = webdriver.request('GET', 'http://google.com/')
+response = webdriver.request('GET', 'https://www.google.com/')
+print(response)
+
+
+# More complex usage, using a WebDriver from another Selenium-related module:
+from seleniumrequests.request import RequestMixin
+from someothermodule import CustomWebDriver
+
+
+class MyCustomWebDriver(CustomWebDriver, RequestMixin):
+    pass
+
+
+custom_webdriver = MyCustomWebDriver()
+response = custom_webdriver.request('GET', 'https://www.google.com/')
 print(response)
 ```
 
