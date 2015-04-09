@@ -15,7 +15,7 @@ import tld
 FIND_WINDOW_HANDLE_WARNING = (
     'Created window handle could not be found reliably. Using less reliable '
     'alternative method. JavaScript redirects are not supported and an '
-    'additional GET request might be made to the requested domain.'
+    'additional GET request might be made for the requested URL.'
 )
 
 headers = None
