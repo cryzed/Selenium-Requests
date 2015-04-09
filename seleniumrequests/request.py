@@ -3,6 +3,7 @@ import threading
 import time
 import warnings
 
+from selenium.webdriver import Chrome
 from selenium.common.exceptions import NoSuchWindowException, TimeoutException, WebDriverException
 from six.moves import BaseHTTPServer
 from six.moves.urllib.parse import urlparse
@@ -30,16 +31,13 @@ class HTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     def do_GET(self):
         global headers
 
-        # Python 2's HTTPMessage class contains the actual data in its
-        # "dict"-attribute, whereas in Python 3 HTTPMessage is itself the
-        # container. Treat headers as case-insensitive
         headers = requests.structures.CaseInsensitiveDict(self.headers if six.PY3 else self.headers.dict)
         update_headers_mutex.release()
 
         self.send_response(200)
         self.end_headers()
 
-        # Immediately close the window again as soon as it is loaded
+        # Immediately close the window as soon as it is loaded
         self.wfile.write(six.b('<script type="text/javascript">window.close();</script>'))
 
     # Suppress unwanted logging to stderr
@@ -57,7 +55,7 @@ def get_unused_port():
 
 def get_webdriver_request_headers(webdriver):
     # There's a small chance that the port was taken since the call of
-    # get_unused_port()
+    # get_unused_port(), so make sure we try as often as needed
     while True:
         port = get_unused_port()
         try:
@@ -82,8 +80,8 @@ def get_webdriver_request_headers(webdriver):
     headers_ = headers
     headers = None
 
-    # Remove the Host-header which will simply contain the localhost address of
-    # the HTTPRequestHandler instance
+    # Remove the host header, which will simply contain the localhost address
+    # of the HTTPRequestHandler instance
     del headers_['host']
     return headers_
 
@@ -92,7 +90,7 @@ def prepare_requests_cookies(webdriver_cookies):
     return dict((str(cookie['name']), str(cookie['value'])) for cookie in webdriver_cookies)
 
 
-def get_domain(url):
+def get_tld(url):
     try:
         domain = tld.get_tld(url)
     except (tld.exceptions.TldBadUrl, tld.exceptions.TldDomainNotFound):
@@ -112,8 +110,7 @@ def find_window_handle(webdriver, callback):
         if window_handle == original_window_handle:
             continue
 
-        # It's possible that one of the valid window handles is closed during
-        # checking
+        # This exception can occur if the current window handle was closed
         try:
             webdriver.switch_to.window(window_handle)
         except NoSuchWindowException:
@@ -122,19 +119,17 @@ def find_window_handle(webdriver, callback):
         if callback(webdriver):
             return window_handle
 
-    # Simply switch back to the original window handle and return None by
-    # default if no matching window handle was found
+    # Simply switch back to the original window handle and return None if no
+    # matching window handle was found
     webdriver.switch_to.window(original_window_handle)
 
 
 def make_find_domain_condition(webdriver, requested_domain):
     def condition(webdriver):
         try:
-            return get_domain(webdriver.current_url) == requested_domain
+            return get_tld(webdriver.current_url) == requested_domain
 
-        # This exception can apparently occur in PhantomJS if the window handle
-        # wasn't closed "properly", which seems to happen sometimes due to the
-        # JavaScript returned by the HTTPRequestHandler
+        # This exception can occur if the current window handle was closed
         except NoSuchWindowException:
             pass
 
@@ -144,31 +139,37 @@ def make_find_domain_condition(webdriver, requested_domain):
 class RequestMixin(object):
 
     def request(self, method, url, find_window_handle_timeout=-1, page_load_timeout=-1, **kwargs):
-        # Create a requests session object for this instance that sends the
-        # webdriver's default request headers
         if not hasattr(self, '_seleniumrequests_session'):
             self._seleniumrequests_session = requests.Session()
-            self._seleniumrequests_session.headers = get_webdriver_request_headers(self)
 
-            # Delete Cookie header from the request headers, to prevent
-            # overwriting manually set cookies later. This should only happen
-            # during testing or when working with requests to localhost
+            # Workaround for https://github.com/cryzed/Selenium-Requests/issues/2
+            if isinstance(self, Chrome):
+                window_handles_before = len(self.window_handles)
+                self._seleniumrequests_session.headers = get_webdriver_request_headers(self)
+
+                # Wait until the newly opened window handle is closed again, to
+                # prevent switching to it just as it is about to be closed
+                while len(self.window_handles) > window_handles_before:
+                    pass
+
+            else:
+                self._seleniumrequests_session.headers = get_webdriver_request_headers(self)
+
+            # Delete cookies from the request headers, to prevent overwriting
+            # manually set cookies later. This should only happen when the
+            # webdriver has cookies set for the localhost
             if 'cookie' in self._seleniumrequests_session.headers:
                 del self._seleniumrequests_session.headers['cookie']
 
         original_window_handle = None
         opened_window_handle = None
-        requested_domain = get_domain(url)
-        # If a NoSuchWindowException occurs here (see
-        # make_find_domain_condition) it's the concern of the calling code to
-        # handle it, since the exception is only potentially generated
-        # internally by get_webdriver_request_headers
-        if not get_domain(self.current_url) == requested_domain:
+        requested_tld = get_tld(url)
+        if not get_tld(self.current_url) == requested_tld:
             original_window_handle = self.current_window_handle
 
             # Try to find an existing window handle that matches the requested
-            # domain
-            condition = make_find_domain_condition(self, requested_domain)
+            # top-level domain
+            condition = make_find_domain_condition(self, requested_tld)
             window_handle = find_window_handle(self, condition)
 
             # Create a new window handle manually in case it wasn't found
@@ -182,32 +183,33 @@ class RequestMixin(object):
                 if len(difference) == 1:
                     opened_window_handle = tuple(difference)[0]
 
-                    # Will automatically wait until the new window handle has
-                    # finished loading
+                    # Most WebDrivers will automatically wait until the
+                    # switched-to window handle has finished loading
                     self.switch_to.window(opened_window_handle)
                 else:
                     warnings.warn(FIND_WINDOW_HANDLE_WARNING)
                     opened_window_handle = find_window_handle(self, condition)
 
                     # Window handle could not be found during first pass.
-                    # Either the WebDriver didn't wait for the page load
-                    # (PhantomJS) or there was a redirect
+                    # Either the WebDriver didn't wait for the page to load
+                    # completely (PhantomJS) or there was a redirect and the
+                    # top-level domain changed
                     if not opened_window_handle:
                         response = self._seleniumrequests_session.get(url, stream=True)
-                        domain = tld.get_tld(response.url)
-                        if domain != requested_domain:
-                            condition = make_find_domain_condition(self, get_domain(response.url))
+                        current_tld = get_tld(response.url)
+                        if current_tld != requested_tld:
+                            condition = make_find_domain_condition(self, current_tld)
 
-                    # Some webdrivers (PhantomJS) take some time until the new
-                    # window handle has loaded the correct URL
+                    # Some WebDrivers (PhantomJS) take some time until the new
+                    # window handle has loaded
                     start = time.time()
                     while not opened_window_handle:
                         opened_window_handle = find_window_handle(self, condition)
                         if find_window_handle_timeout >= 0 and time.time() - start > find_window_handle_timeout:
                             raise TimeoutException('window handle could not be found')
 
-        # Acquire webdriver's instance cookies and merge them with potentially
-        # passed cookies
+        # Acquire WebDriver's cookies and merge them with potentially passed
+        # cookies
         cookies = prepare_requests_cookies(self.get_cookies())
         if 'cookies' in kwargs:
             cookies.update(kwargs['cookies'])
@@ -215,7 +217,7 @@ class RequestMixin(object):
 
         response = self._seleniumrequests_session.request(method, url, **kwargs)
 
-        # Set cookies set by the HTTP response within the webdriver instance
+        # Set cookies received from the HTTP response in the WebDriver
         for cookie in response.cookies:
             cookie_dict = {'name': cookie.name, 'value': cookie.value, 'secure': cookie.secure}
             if cookie.expires:
@@ -223,8 +225,8 @@ class RequestMixin(object):
             if cookie.path_specified:
                 cookie_dict['path'] = cookie.path
 
-            # PhantomJS's GhostDriver doesn't block until the active window has
-            # loaded, thus we have to do this:
+            # Some WebDrivers (PhantomJS) take some time until the new window
+            # handle has loaded and cookies can be set
             start = time.time()
             while page_load_timeout < 0 or time.time() - start <= page_load_timeout:
                 try:
@@ -235,14 +237,7 @@ class RequestMixin(object):
             else:
                 raise TimeoutException('page took too long to load')
 
-        # We don't actually want to keep cookies in the RequestCookieJar, the
-        # session object is mostly useful for performance when making requests
-        # (persistent connections to the host). After transferring the response
-        # cookies, the WebDriver instance should have and manage all cookies.
-        # A possible scenario: Someone is using a WebDriver instance and then
-        # decides to delete a certain cookie in some way, during the next
-        # request that is made, the old cookie would still be sent by the
-        # session
+        # Don't keep cookies in the Requests session, only use the WebDriver's
         self._seleniumrequests_session.cookies.clear()
 
         if opened_window_handle:
