@@ -2,11 +2,15 @@ import json
 import socket
 import threading
 
-from seleniumrequests import Firefox, Chrome, PhantomJS
+from seleniumrequests import Firefox, Chrome, Ie, Opera, Safari, PhantomJS
 from seleniumrequests.request import get_unused_port
 from six.moves import BaseHTTPServer, http_cookies
+import pytest
 import requests
 import six
+
+
+WEBDRIVER_CLASSES = Firefox, Chrome, Ie, Opera, Safari, PhantomJS
 
 
 class DummyRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
@@ -85,9 +89,16 @@ echo_header_server = run_http_server(EchoHeaderRequestHandler)
 set_cookie_server = run_http_server(SetCookieRequestHandler)
 
 
+def instantiate_webdriver(webdriver_class):
+    try:
+        return webdriver_class()
+    except Exception:
+        pytest.skip('WebDriver not available')
+
+
 def make_window_handling_test(webdriver_class):
     def test_window_handling():
-        webdriver = webdriver_class()
+        webdriver = instantiate_webdriver(webdriver_class)
         webdriver.get(dummy_server)
 
         original_window_handle = webdriver.current_window_handle
@@ -114,7 +125,7 @@ def make_window_handling_test(webdriver_class):
 
 def make_headers_test(webdriver_class):
     def test_headers():
-        webdriver = webdriver_class()
+        webdriver = instantiate_webdriver(webdriver_class)
 
         # TODO: Add more cookie examples with additional fields, such as
         # expires, path, comment, max-age, secure, version, httponly
@@ -157,7 +168,7 @@ def make_headers_test(webdriver_class):
 
 def make_cookie_test(webdriver_class):
     def test_cookies():
-        webdriver = webdriver_class()
+        webdriver = instantiate_webdriver(webdriver_class)
 
         # Make sure that the WebDriver itself doesn't receive the Set-Cookie
         # header, instead the requests request should receive it and set it
@@ -170,6 +181,7 @@ def make_cookie_test(webdriver_class):
         cookie = webdriver.get_cookies()[0]
         assert cookie['name'] == 'some' and cookie['value'] == 'cookie'
 
+        # TODO: Improve this
         # Ensure that the Requests session cookies were cleared and only
         # cookies directly taken from the WebDriver instance are used
         assert not webdriver._seleniumrequests_session.cookies
@@ -179,14 +191,8 @@ def make_cookie_test(webdriver_class):
     return test_cookies
 
 
-test_firefox_window_handling = make_window_handling_test(Firefox)
-test_firefox_headers = make_headers_test(Firefox)
-test_firefox_set_cookie = make_cookie_test(Firefox)
-
-test_chrome_window_handling = make_window_handling_test(Chrome)
-test_chrome_headers = make_headers_test(Chrome)
-test_chrome_set_cookie = make_cookie_test(Chrome)
-
-test_phantomjs_window_handling = make_window_handling_test(PhantomJS)
-test_phantomjs_headers = make_headers_test(PhantomJS)
-test_phantomjs_set_cookie = make_cookie_test(PhantomJS)
+for webdriver_class in WEBDRIVER_CLASSES:
+    name = webdriver_class.__name__.lower()
+    globals()['test_%s_window_handling' % name] = make_window_handling_test(webdriver_class)
+    globals()['test_%s_headers' % name] = make_headers_test(webdriver_class)
+    globals()['test_%s_set_cookie' % name] = make_cookie_test(webdriver_class)
