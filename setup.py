@@ -13,7 +13,7 @@ else:
 
 setup(
     name='selenium-requests',
-    version='1.2.7',
+    version='1.3',
     description=(
         'Extends Selenium WebDriver classes to include the request function '
         'from the Requests library, while doing all the needed cookie and '
