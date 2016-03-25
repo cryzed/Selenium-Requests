@@ -5,7 +5,7 @@ import warnings
 
 import requests
 import six
-import tld
+import tldextract
 from selenium.common.exceptions import NoSuchWindowException, TimeoutException, WebDriverException
 from selenium.webdriver import Chrome
 from six.moves import BaseHTTPServer
@@ -89,12 +89,8 @@ def prepare_requests_cookies(webdriver_cookies):
 
 
 def get_tld(url):
-    try:
-        domain = tld.get_tld(url)
-    except (tld.exceptions.TldBadUrl, tld.exceptions.TldDomainNotFound):
-        return url
-
-    return domain
+    components = tldextract.extract(url)
+    return components.registered_domain or url
 
 
 def find_window_handle(webdriver, callback):

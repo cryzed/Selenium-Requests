@@ -28,7 +28,7 @@ setup(
         'requests',
         'selenium',
         'six',
-        'tld'
+        'tldextract'
     ),
     license='MIT',
     zip_safe=False,
