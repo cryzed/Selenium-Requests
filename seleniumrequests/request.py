@@ -3,14 +3,13 @@ import threading
 import time
 import warnings
 
-from selenium.webdriver import Chrome
-from selenium.common.exceptions import NoSuchWindowException, TimeoutException, WebDriverException
-from six.moves import BaseHTTPServer
-from six.moves.urllib.parse import urlparse
 import requests
 import six
 import tld
-
+from selenium.common.exceptions import NoSuchWindowException, TimeoutException, WebDriverException
+from selenium.webdriver import Chrome
+from six.moves import BaseHTTPServer
+from six.moves.urllib.parse import urlparse
 
 FIND_WINDOW_HANDLE_WARNING = (
     'Created window handle could not be found reliably. Using less reliable '
@@ -27,7 +26,6 @@ update_headers_mutex.acquire()
 # be the easiest way to get access to it, since the HTTPServer doesn't keep an
 # object of the instance of the HTTPRequestHandler
 class HTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
-
     def do_GET(self):
         global headers
 
@@ -137,7 +135,6 @@ def make_find_domain_condition(webdriver, requested_domain):
 
 
 class RequestMixin(object):
-
     def request(self, method, url, find_window_handle_timeout=-1, page_load_timeout=-1, **kwargs):
         if not hasattr(self, '_seleniumrequests_session'):
             self._seleniumrequests_session = requests.Session()

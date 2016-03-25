@@ -5,13 +5,11 @@ try:
 except ImportError:
     pypandoc = None
 
-
 if pypandoc:
     long_description = pypandoc.convert('README.md', 'rst')
 else:
     with open('README.md') as file:
         long_description = file.read()
-
 
 setup(
     name='selenium-requests',

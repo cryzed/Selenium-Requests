@@ -2,21 +2,19 @@ import json
 import socket
 import threading
 
-from selenium.webdriver.firefox.firefox_profile import FirefoxProfile
-
-from seleniumrequests import Firefox, Chrome, Ie, Opera, Safari, PhantomJS
-from seleniumrequests.request import get_unused_port
-from six.moves import BaseHTTPServer, http_cookies
 import pytest
 import requests
 import six
+from selenium.webdriver.firefox.firefox_profile import FirefoxProfile
+from six.moves import BaseHTTPServer, http_cookies
 
+from seleniumrequests import Firefox, Chrome, Ie, Opera, Safari, PhantomJS
+from seleniumrequests.request import get_unused_port
 
 WEBDRIVER_CLASSES = Firefox, Chrome, Ie, Opera, Safari, PhantomJS
 
 
 class DummyRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
-
     def do_GET(self):
         self.send_response(200)
         self.end_headers()
@@ -28,7 +26,6 @@ class DummyRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
 
 class EchoHeaderRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
-
     def do_GET(self):
         # Python 2's HTTPMessage class contains the actual data in its
         # "dict"-attribute, whereas in Python 3 HTTPMessage is itself the
@@ -50,7 +47,6 @@ class EchoHeaderRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
 
 class SetCookieRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
-
     def do_GET(self):
         self.send_response(200)
         if 'set-cookie' in (self.headers if six.PY3 else self.headers.dict):
@@ -148,7 +144,8 @@ def make_headers_test(webdriver_class):
         for cookie in cookies:
             webdriver.add_cookie(cookie)
 
-        response = webdriver.request('GET', echo_header_server, headers={'extra': 'header'}, cookies={'extra': 'cookie'})
+        response = webdriver.request('GET', echo_header_server, headers={'extra': 'header'},
+                                     cookies={'extra': 'cookie'})
         sent_headers = requests.structures.CaseInsensitiveDict(json.loads(response.headers['echo']))
 
         # Simply assert that the User-Agent isn't requests' default one, which
