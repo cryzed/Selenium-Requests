@@ -2,6 +2,8 @@ import json
 import socket
 import threading
 
+from selenium.webdriver.firefox.firefox_profile import FirefoxProfile
+
 from seleniumrequests import Firefox, Chrome, Ie, Opera, Safari, PhantomJS
 from seleniumrequests.request import get_unused_port
 from six.moves import BaseHTTPServer, http_cookies
@@ -90,6 +92,12 @@ set_cookie_server = run_http_server(SetCookieRequestHandler)
 
 
 def instantiate_webdriver(webdriver_class):
+    if webdriver_class is Firefox:
+        profile = FirefoxProfile()
+        # Make sure Firefox WebDriver addon works, even if it could not be verified
+        profile.set_preference('xpinstall.signatures.required', False)
+        return webdriver_class(profile)
+
     try:
         return webdriver_class()
     except Exception:
