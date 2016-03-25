@@ -2,7 +2,6 @@ import functools
 import json
 import socket
 import threading
-import types
 
 import pytest
 import requests
