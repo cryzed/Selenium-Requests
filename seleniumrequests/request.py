@@ -217,7 +217,9 @@ class RequestMixin(object):
                 cookie_dict['expiry'] = cookie.expires
             if cookie.path_specified:
                 cookie_dict['path'] = cookie.path
-
+            # Workaround for https://github.com/cryzed/Selenium-Requests/issues/11
+            if self.name == 'phantomjs':
+                cookie_dict['domain'] = ''.join(('.', requested_tld))
             # Some WebDrivers (PhantomJS) take some time until the new window
             # handle has loaded and cookies can be set
             start = time.time()
