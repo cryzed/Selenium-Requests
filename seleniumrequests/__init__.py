@@ -3,33 +3,33 @@ from selenium.webdriver import Firefox, Chrome, Ie, Opera, Safari, PhantomJS, An
 from seleniumrequests.request import RequestMixin
 
 
-class Firefox(Firefox, RequestMixin):
+class Firefox(RequestMixin, Firefox):
     pass
 
 
-class Chrome(Chrome, RequestMixin):
+class Chrome(RequestMixin, Chrome):
     pass
 
 
-class Ie(Ie, RequestMixin):
+class Ie(RequestMixin, Ie):
     pass
 
 
-class Opera(Opera, RequestMixin):
+class Opera(RequestMixin, Opera):
     pass
 
 
-class Safari(Safari, RequestMixin):
+class Safari(RequestMixin, Safari):
     pass
 
 
-class PhantomJS(PhantomJS, RequestMixin):
+class PhantomJS(RequestMixin, PhantomJS):
     pass
 
 
-class Android(Android, RequestMixin):
+class Android(RequestMixin, Android):
     pass
 
 
-class Remote(Remote, RequestMixin):
+class Remote(RequestMixin, Remote):
     pass

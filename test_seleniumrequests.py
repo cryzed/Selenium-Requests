@@ -6,12 +6,13 @@ import threading
 import pytest
 import requests
 import six
+from selenium.common.exceptions import WebDriverException
 from selenium.webdriver.chrome.options import Options as ChromeOptions
 from selenium.webdriver.firefox.firefox_profile import FirefoxProfile
 from six.moves import BaseHTTPServer, http_cookies
 
 from seleniumrequests import Firefox, Chrome, Ie, Opera, Safari, PhantomJS
-from seleniumrequests.request import get_unused_port
+from seleniumrequests.request import get_unused_port, get_tld
 
 WEBDRIVER_CLASSES = PhantomJS, Firefox, Chrome, Ie, Opera, Safari, PhantomJS
 
@@ -126,7 +127,7 @@ def make_window_handling_test(webdriver_class):
         webdriver.get(dummy_server)
 
         original_window_handle = webdriver.current_window_handle
-        webdriver.execute_script("window.open('%s');" % dummy_server)
+        webdriver.execute_script("window.open('%s', '_blank');" % dummy_server)
         original_window_handles = set(webdriver.window_handles)
 
         # We need a different domain here to test the correct behaviour. Using
@@ -150,19 +151,31 @@ def make_window_handling_test(webdriver_class):
 def make_headers_test(webdriver_class):
     def test_headers():
         webdriver = instantiate_webdriver(webdriver_class)
+        is_phantomjs = webdriver.capabilities['browserName'] == 'phantomjs'
+        is_phantomjs_211 = is_phantomjs and webdriver.capabilities['version'] == '2.1.1'
 
         # TODO: Add more cookie examples with additional fields, such as
         # expires, path, comment, max-age, secure, version, httponly
+        domain = get_tld(echo_header_server)
         cookies = (
-            {'name': 'hello', 'value': 'world'},
-            {'name': 'another', 'value': 'cookie'}
+            {'domain': domain if is_phantomjs else None, 'name': 'hello', 'value': 'world'},
+            {'domain': domain if is_phantomjs else None, 'name': 'another', 'value': 'cookie'}
         )
 
         # Open the server URL with the WebDriver instance initially so we can
         # set custom cookies
         webdriver.get(echo_header_server)
         for cookie in cookies:
-            webdriver.add_cookie(cookie)
+            # Workaround for https://github.com/ariya/phantomjs/issues/14047
+            if is_phantomjs_211:
+                try:
+                    webdriver.add_cookie(cookie)
+                except WebDriverException as exception:
+                    details = json.loads(exception.msg)
+                    if not details['errorMessage'] == 'Unable to set Cookie':
+                        raise
+            else:
+                webdriver.add_cookie(cookie)
 
         response = webdriver.request('GET', echo_header_server, headers={'extra': 'header'},
                                      cookies={'extra': 'cookie'})
@@ -209,7 +222,7 @@ def make_cookie_test(webdriver_class):
         # TODO: Improve this
         # Ensure that the Requests session cookies were cleared and only
         # cookies directly taken from the WebDriver instance are used
-        assert not webdriver._seleniumrequests_session.cookies
+        assert not webdriver._requests_session.cookies
 
         webdriver.quit()
 
