@@ -1,13 +1,12 @@
 import json
 import socket
 import threading
-import time
 import warnings
 
 import requests
 import six
 import tldextract
-from selenium.common.exceptions import NoSuchWindowException, TimeoutException, WebDriverException
+from selenium.common.exceptions import NoSuchWindowException, WebDriverException
 from six.moves import BaseHTTPServer
 from six.moves.urllib.parse import urlparse
 
@@ -20,6 +19,10 @@ FIND_WINDOW_HANDLE_WARNING = (
 headers = None
 update_headers_mutex = threading.Semaphore()
 update_headers_mutex.acquire()
+
+
+class SeleniumRequestsException(Exception):
+    pass
 
 
 # Using a global value to pass around the headers dictionary reference seems to
@@ -68,11 +71,11 @@ def get_webdriver_request_headers(webdriver):
 
     update_headers_mutex.acquire()
 
-    # Possibly optional: Make sure that the webdriver didn't switch the window
-    # handle to the newly opened window. Behaviors of different webdrivers seem
-    # to differ greatly here
-    if webdriver.current_window_handle != original_window_handle:
-        webdriver.switch_to.window(original_window_handle)
+    # Not optional: Make sure that the webdriver didn't switch the window handle to the newly opened window. Behaviors
+    # of different webdrivers seem to differ here. Workaround for Firefox: If a new window is opened via JavaScript as a
+    # new tab, requesting self.current_url never returns. Explicitly switching to the current window handle again seems
+    # to fix this issue.
+    webdriver.switch_to.window(original_window_handle)
 
     global headers
     headers_ = headers
@@ -156,7 +159,7 @@ class RequestMixin(object):
             if not (self._is_phantomjs_211 and details['errorMessage'] == 'Unable to set Cookie'):
                 raise
 
-    def request(self, method, url, find_window_handle_timeout=-1, page_load_timeout=-1, **kwargs):
+    def request(self, method, url, **kwargs):
         if not self._has_webdriver_request_headers:
             # Workaround for Chrome: https://github.com/cryzed/Selenium-Requests/issues/2
             if self.name == 'chrome':
@@ -200,30 +203,22 @@ class RequestMixin(object):
                 if len(difference) == 1:
                     opened_window_handle = tuple(difference)[0]
 
-                    # Most WebDrivers will automatically wait until the
-                    # switched-to window handle has finished loading
+                    # Most WebDrivers will automatically wait until the switched-to window handle has finished loading
                     self.switch_to.window(opened_window_handle)
                 else:
                     warnings.warn(FIND_WINDOW_HANDLE_WARNING)
                     opened_window_handle = find_window_handle(self, condition)
 
-                    # Window handle could not be found during first pass.
-                    # Either the WebDriver didn't wait for the page to load
-                    # completely (PhantomJS) or there was a redirect and the
-                    # top-level domain changed
+                    # Window handle could not be found during first pass. There might have been a redirect and the top-
+                    # level domain changed
                     if not opened_window_handle:
                         response = self._requests_session.get(url, stream=True)
                         current_tld = get_tld(response.url)
                         if current_tld != requested_tld:
                             condition = make_find_domain_condition(self, current_tld)
-
-                    # Some WebDrivers (PhantomJS) take some time until the new
-                    # window handle has loaded
-                    start = time.time()
-                    while not opened_window_handle:
-                        opened_window_handle = find_window_handle(self, condition)
-                        if find_window_handle_timeout >= 0 and time.time() - start > find_window_handle_timeout:
-                            raise TimeoutException('window handle could not be found')
+                            opened_window_handle = find_window_handle(self, condition)
+                            if not opened_window_handle:
+                                raise SeleniumRequestsException('window handle could not be found')
 
         # Acquire WebDriver's cookies and merge them with potentially passed
         # cookies

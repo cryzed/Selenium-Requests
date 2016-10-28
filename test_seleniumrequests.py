@@ -1,4 +1,3 @@
-import functools
 import json
 import socket
 import threading
@@ -6,8 +5,6 @@ import threading
 import pytest
 import requests
 import six
-from selenium.webdriver.chrome.options import Options as ChromeOptions
-from selenium.webdriver.firefox.firefox_profile import FirefoxProfile
 from six.moves import BaseHTTPServer, http_cookies
 
 from seleniumrequests import Firefox, Chrome, Ie, Opera, Safari, PhantomJS
@@ -90,29 +87,6 @@ set_cookie_server = run_http_server(SetCookieRequestHandler)
 
 
 def instantiate_webdriver(webdriver_class):
-    if webdriver_class is Firefox:
-        def webdriver_class():
-            profile = FirefoxProfile()
-
-            # Make sure Firefox WebDriver addon works, even if it could not be verified
-            profile.set_preference('xpinstall.signatures.required', False)
-            webdriver = Firefox(profile)
-            return webdriver
-
-    elif webdriver_class is Chrome:
-        options = ChromeOptions()
-
-        # If popup blocking is enabled spawning new window handles via JavaScript won't work!
-        options.add_argument('disable-popup-blocking')
-        webdriver_class = functools.partial(webdriver_class, chrome_options=options)
-    elif webdriver_class is PhantomJS:
-        def webdriver_class():
-            webdriver = PhantomJS()
-            # Fix Selenium PermissionError when trying to delete PhantomJS cookie files by simply not creating a cookie
-            # file.
-            webdriver.service._cookie_temp_file = None
-            return webdriver
-
     try:
         return webdriver_class()
     # Selenium raises Exception directly in some WebDriver classes...
