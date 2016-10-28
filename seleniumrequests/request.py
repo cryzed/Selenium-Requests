@@ -64,7 +64,7 @@ def get_webdriver_request_headers(webdriver):
 
     threading.Thread(target=server.handle_request).start()
     original_window_handle = webdriver.current_window_handle
-    webdriver.execute_script("window.open('http://127.0.0.1:%d/');" % port)
+    webdriver.execute_script("window.open('http://127.0.0.1:%d/', '_blank');" % port)
 
     update_headers_mutex.acquire()
 
@@ -144,11 +144,22 @@ class RequestMixin(object):
         super(RequestMixin, self).__init__(*args, **kwargs)
         self._requests_session = requests.Session()
         self._has_webdriver_request_headers = False
+        self._is_phantomjs = self.name == 'phantomjs'
+        self._is_phantomjs_211 = self._is_phantomjs and self.capabilities['version'] == '2.1.1'
+
+    # Workaround for PhantomJS: https://github.com/ariya/phantomjs/issues/14047
+    def add_cookie(self, cookie_dict):
+        try:
+            super(RequestMixin, self).add_cookie(cookie_dict)
+        except WebDriverException as exception:
+            details = json.loads(exception.msg)
+            if not (self._is_phantomjs_211 and details['errorMessage'] == 'Unable to set Cookie'):
+                raise
 
     def request(self, method, url, find_window_handle_timeout=-1, page_load_timeout=-1, **kwargs):
         if not self._has_webdriver_request_headers:
             # Workaround for Chrome: https://github.com/cryzed/Selenium-Requests/issues/2
-            if self.capabilities['browserName'] == 'chrome':
+            if self.name == 'chrome':
                 window_handles_before = len(self.window_handles)
                 self._requests_session.headers = get_webdriver_request_headers(self)
 
@@ -224,8 +235,6 @@ class RequestMixin(object):
         response = self._requests_session.request(method, url, **kwargs)
 
         # Set cookies received from the HTTP response in the WebDriver
-        is_phantomjs = self.capabilities['browserName'] == 'phantomjs'
-        is_phantomjs_211 = is_phantomjs and self.capabilities['version'] == '2.1.1'
         current_tld = get_tld(self.current_url)
         for cookie in response.cookies:
             # Setting domain to None automatically instructs most webdrivers to use the domain of the current window
@@ -237,23 +246,15 @@ class RequestMixin(object):
                 cookie_dict['path'] = cookie.path
 
             # Workaround for PhantomJS: PhantomJS doesn't accept None
-            if is_phantomjs:
+            if self._is_phantomjs:
                 cookie_dict['domain'] = current_tld
 
-            try:
-                self.add_cookie(cookie_dict)
-            except WebDriverException as exception:
-                details = json.loads(exception.msg)
-                # Workaround for PhantomJS: https://github.com/ariya/phantomjs/issues/14047
-                if not (is_phantomjs_211 and details['errorMessage'] == 'Unable to set Cookie'):
-                    raise
+            self.add_cookie(cookie_dict)
 
         # Don't keep cookies in the Requests session, only use the WebDriver's
         self._requests_session.cookies.clear()
-
         if opened_window_handle:
             self.close()
-
         if original_window_handle:
             self.switch_to.window(original_window_handle)
 

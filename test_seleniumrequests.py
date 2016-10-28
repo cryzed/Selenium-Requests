@@ -6,7 +6,6 @@ import threading
 import pytest
 import requests
 import six
-from selenium.common.exceptions import WebDriverException
 from selenium.webdriver.chrome.options import Options as ChromeOptions
 from selenium.webdriver.firefox.firefox_profile import FirefoxProfile
 from six.moves import BaseHTTPServer, http_cookies
@@ -151,31 +150,20 @@ def make_window_handling_test(webdriver_class):
 def make_headers_test(webdriver_class):
     def test_headers():
         webdriver = instantiate_webdriver(webdriver_class)
-        is_phantomjs = webdriver.capabilities['browserName'] == 'phantomjs'
-        is_phantomjs_211 = is_phantomjs and webdriver.capabilities['version'] == '2.1.1'
 
         # TODO: Add more cookie examples with additional fields, such as
         # expires, path, comment, max-age, secure, version, httponly
-        domain = get_tld(echo_header_server)
+        domain = get_tld(echo_header_server) if webdriver.name == 'phantomjs' else None
         cookies = (
-            {'domain': domain if is_phantomjs else None, 'name': 'hello', 'value': 'world'},
-            {'domain': domain if is_phantomjs else None, 'name': 'another', 'value': 'cookie'}
+            {'domain': domain, 'name': 'hello', 'value': 'world'},
+            {'domain': domain, 'name': 'another', 'value': 'cookie'}
         )
 
         # Open the server URL with the WebDriver instance initially so we can
         # set custom cookies
         webdriver.get(echo_header_server)
         for cookie in cookies:
-            # Workaround for https://github.com/ariya/phantomjs/issues/14047
-            if is_phantomjs_211:
-                try:
-                    webdriver.add_cookie(cookie)
-                except WebDriverException as exception:
-                    details = json.loads(exception.msg)
-                    if not details['errorMessage'] == 'Unable to set Cookie':
-                        raise
-            else:
-                webdriver.add_cookie(cookie)
+            webdriver.add_cookie(cookie)
 
         response = webdriver.request('GET', echo_header_server, headers={'extra': 'header'},
                                      cookies={'extra': 'cookie'})
