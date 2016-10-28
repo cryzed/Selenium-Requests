@@ -7,10 +7,10 @@ import requests
 import six
 from six.moves import BaseHTTPServer, http_cookies
 
-from seleniumrequests import Firefox, Chrome, Ie, Opera, Safari, PhantomJS
+from seleniumrequests import Firefox, Chrome, Ie, Edge, Opera, Safari, BlackBerry, PhantomJS, Android, Remote
 from seleniumrequests.request import get_unused_port, get_tld
 
-WEBDRIVER_CLASSES = PhantomJS, Firefox, Chrome, Ie, Opera, Safari, PhantomJS
+WEBDRIVER_CLASSES = Firefox, Chrome, Ie, Edge, Opera, Safari, BlackBerry, PhantomJS, Android, Remote
 
 
 class DummyRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):

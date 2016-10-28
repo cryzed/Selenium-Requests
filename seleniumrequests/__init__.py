@@ -1,4 +1,4 @@
-from selenium.webdriver import Firefox, Chrome, Ie, Opera, Safari, PhantomJS, Android, Remote
+from selenium.webdriver import Firefox, Chrome, Ie, Edge, Opera, Safari, BlackBerry, PhantomJS, Android, Remote
 
 from seleniumrequests.request import RequestMixin
 
@@ -15,11 +15,19 @@ class Ie(RequestMixin, Ie):
     pass
 
 
+class Edge(RequestMixin, Edge):
+    pass
+
+
 class Opera(RequestMixin, Opera):
     pass
 
 
 class Safari(RequestMixin, Safari):
+    pass
+
+
+class BlackBerry(RequestMixin, BlackBerry):
     pass
 
 

@@ -34,7 +34,7 @@ from seleniumrequests.request import RequestMixin
 from someothermodule import CustomWebDriver
 
 
-class MyCustomWebDriver(CustomWebDriver, RequestMixin):
+class MyCustomWebDriver(RequestMixin, CustomWebDriver):
     pass
 
 
