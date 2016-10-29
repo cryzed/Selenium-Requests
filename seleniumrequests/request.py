@@ -198,10 +198,10 @@ class RequestMixin(object):
 
                 previous_window_handles = set(self.window_handles)
                 self.execute_script("window.open('%s://%s/', '_blank');" % (components.scheme, components.netloc))
-                difference = set(self.window_handles) - set(previous_window_handles)
+                difference = set(self.window_handles) - previous_window_handles
 
                 if len(difference) == 1:
-                    opened_window_handle = tuple(difference)[0]
+                    opened_window_handle = difference.pop()
 
                     # Most WebDrivers will automatically wait until the switched-to window handle has finished loading
                     self.switch_to.window(opened_window_handle)
