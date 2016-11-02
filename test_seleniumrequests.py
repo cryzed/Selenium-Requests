@@ -50,7 +50,6 @@ class SetCookieRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         self.send_response(200)
         if 'set-cookie' in (self.headers if six.PY3 else self.headers.dict):
             self.send_header('set-cookie', 'some=cookie')
-
         self.end_headers()
 
         # This is needed so the WebDriver instance allows setting of cookies
@@ -98,11 +97,9 @@ def make_window_handling_test(webdriver_class):
     def test_window_handling():
         webdriver = instantiate_webdriver(webdriver_class)
         webdriver.get(dummy_server)
-
         original_window_handle = webdriver.current_window_handle
         webdriver.execute_script("window.open('%s', '_blank');" % dummy_server)
         original_window_handles = set(webdriver.window_handles)
-
         # We need a different domain here to test the correct behaviour. Using
         # localhost isn't fool-proof because the hosts file is editable, so
         # make the most reliable choice we can: Google
@@ -111,7 +108,6 @@ def make_window_handling_test(webdriver_class):
         # Make sure that the window handle was switched back to the original
         # one after making a request that caused a new window to open
         assert webdriver.current_window_handle == original_window_handle
-
         # Make sure that all additional window handles that were opened during
         # the request were closed again
         assert set(webdriver.window_handles) == original_window_handles
@@ -124,7 +120,6 @@ def make_window_handling_test(webdriver_class):
 def make_headers_test(webdriver_class):
     def test_headers():
         webdriver = instantiate_webdriver(webdriver_class)
-
         # TODO: Add more cookie examples with additional fields, such as
         # expires, path, comment, max-age, secure, version, httponly
         domain = get_tld(echo_header_server) if webdriver.name == 'phantomjs' else None
@@ -132,13 +127,11 @@ def make_headers_test(webdriver_class):
             {'domain': domain, 'name': 'hello', 'value': 'world'},
             {'domain': domain, 'name': 'another', 'value': 'cookie'}
         )
-
         # Open the server URL with the WebDriver instance initially so we can
         # set custom cookies
         webdriver.get(echo_header_server)
         for cookie in cookies:
             webdriver.add_cookie(cookie)
-
         response = webdriver.request('GET', echo_header_server, headers={'extra': 'header'},
                                      cookies={'extra': 'cookie'})
         sent_headers = requests.structures.CaseInsensitiveDict(json.loads(response.headers['echo']))
@@ -146,18 +139,13 @@ def make_headers_test(webdriver_class):
         # Simply assert that the User-Agent isn't requests' default one, which
         # means that it and the rest of the headers must have been overwritten
         assert sent_headers['user-agent'] != requests.utils.default_user_agent()
-
         # Check if the additional header was sent as well
         assert 'extra' in sent_headers and sent_headers['extra'] == 'header'
-
         cookies = http_cookies.SimpleCookie()
-
         # Python 2's Cookie module expects a string object, not Unicode
         cookies.load(sent_headers['cookie'] if six.PY3 else sent_headers['cookie'].encode('ASCII'))
-
         assert 'hello' in cookies and cookies['hello'].value == 'world'
         assert 'another' in cookies and cookies['another'].value == 'cookie'
-
         # Check if the additional cookie was sent as well
         assert 'extra' in cookies and cookies['extra'].value == 'cookie'
 
@@ -169,22 +157,19 @@ def make_headers_test(webdriver_class):
 def make_cookie_test(webdriver_class):
     def test_cookies():
         webdriver = instantiate_webdriver(webdriver_class)
-
         # Make sure that the WebDriver itself doesn't receive the Set-Cookie
         # header, instead the requests request should receive it and set it
         # manually within the WebDriver instance.
         webdriver.request('GET', set_cookie_server, headers={'set-cookie': ''})
-
         # Open the URL so that we can actually get the cookies
         webdriver.get(set_cookie_server)
 
         cookie = webdriver.get_cookies()[0]
         assert cookie['name'] == 'some' and cookie['value'] == 'cookie'
-
         # TODO: Improve this
         # Ensure that the Requests session cookies were cleared and only
         # cookies directly taken from the WebDriver instance are used
-        assert not webdriver._requests_session.cookies
+        assert not webdriver.requests_session.cookies
 
         webdriver.quit()
 
