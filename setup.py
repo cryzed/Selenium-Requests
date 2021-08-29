@@ -17,7 +17,7 @@ setup(
     author_email="cryzed@googlemail.com",
     url="https://github.com/cryzed/Selenium-Requests",
     packages=("seleniumrequests",),
-    install_requires=("requests", "selenium", "six", "tldextract"),
+    install_requires=("requests", "selenium", "tldextract"),
     license="MIT",
     zip_safe=False,
     classifiers=[
@@ -26,7 +26,6 @@ setup(
         "Natural Language :: English",
         "License :: OSI Approved :: MIT License",
         "Programming Language :: Python",
-        "Programming Language :: Python :: 2",
         "Programming Language :: Python :: 3",
     ],
 )
