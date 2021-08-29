@@ -221,17 +221,11 @@ class RequestsSessionMixin(object):
         # Set cookies received from the HTTP response in the WebDriver
         current_tld = get_tld(self.current_url)
         for cookie in response.cookies:
-            # Setting domain to None automatically instructs most webdrivers to use the domain of the current window
-            # handle
             cookie_dict = {"domain": cookie.domain, "name": cookie.name, "value": cookie.value, "secure": cookie.secure}
             if cookie.expires:
                 cookie_dict["expiry"] = cookie.expires
             if cookie.path_specified:
                 cookie_dict["path"] = cookie.path
-
-            # Workaround for PhantomJS bug: PhantomJS doesn't accept None
-            if self.__is_phantomjs:
-                cookie_dict["domain"] = current_tld
 
             self.add_cookie(cookie_dict)
 
