@@ -1,3 +1,5 @@
+__version__ = "1.3.2"
+
 from selenium.webdriver import Android as _Android
 from selenium.webdriver import BlackBerry as _BlackBerry
 from selenium.webdriver import Chrome as _Chrome
