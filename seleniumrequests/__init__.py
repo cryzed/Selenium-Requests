@@ -1,7 +1,13 @@
-from selenium.webdriver import (
-    Firefox as _Firefox, Chrome as _Chrome, Ie as _Ie, Edge as _Edge, Opera as _Opera, Safari as _Safari,
-    BlackBerry as _BlackBerry, PhantomJS as _PhantomJS, Android as _Android, Remote as _Remote)
-
+from selenium.webdriver import Android as _Android
+from selenium.webdriver import BlackBerry as _BlackBerry
+from selenium.webdriver import Chrome as _Chrome
+from selenium.webdriver import Edge as _Edge
+from selenium.webdriver import Firefox as _Firefox
+from selenium.webdriver import Ie as _Ie
+from selenium.webdriver import Opera as _Opera
+from selenium.webdriver import PhantomJS as _PhantomJS
+from selenium.webdriver import Remote as _Remote
+from selenium.webdriver import Safari as _Safari
 from seleniumrequests.request import RequestsSessionMixin
 
 

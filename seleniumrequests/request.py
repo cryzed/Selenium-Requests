@@ -1,24 +1,23 @@
-import json
 import socket
 import threading
 import warnings
+import http.server
+import urllib.parse
+import time
 
 import requests
-import six
 import tldextract
 from selenium.common.exceptions import NoSuchWindowException, WebDriverException
-from six.moves import BaseHTTPServer
-from six.moves.urllib.parse import urlparse
 
 FIND_WINDOW_HANDLE_WARNING = (
-    'Created window handle could not be found reliably. Using less reliable '
-    'alternative method. JavaScript redirects are not supported and an '
-    'additional GET request might be made for the requested URL.'
+    "Created window handle could not be found reliably. Using less reliable "
+    "alternative method. JavaScript redirects are not supported and an "
+    "additional GET request might be made for the requested URL."
 )
 
-headers = None
-update_headers_mutex = threading.Semaphore()
-update_headers_mutex.acquire()
+HEADERS = None
+UPDATER_HEADERS_MUTEX = threading.Semaphore()
+UPDATER_HEADERS_MUTEX.acquire()
 
 
 class SeleniumRequestsException(Exception):
@@ -27,16 +26,16 @@ class SeleniumRequestsException(Exception):
 
 # Using a global value to pass around the headers dictionary reference seems to be the easiest way to get access to it,
 # since the HTTPServer doesn't keep an object of the instance of the HTTPRequestHandler
-class HTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
+class HTTPRequestHandler(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
-        global headers
-        headers = requests.structures.CaseInsensitiveDict(self.headers if six.PY3 else self.headers.dict)
-        update_headers_mutex.release()
+        global HEADERS
+        HEADERS = requests.structures.CaseInsensitiveDict(self.headers)
+        UPDATER_HEADERS_MUTEX.release()
 
         self.send_response(200)
         self.end_headers()
         # Immediately close the window as soon as it is loaded
-        self.wfile.write(six.b('<script type="text/javascript">window.close();</script>'))
+        self.wfile.write('<script type="text/javascript">window.close();</script>'.encode("utf-8"))
 
     # Suppress unwanted logging to stderr
     def log_message(self, format, *args):
@@ -45,7 +44,7 @@ class HTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
 def get_unused_port():
     socket_ = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    socket_.bind(('', 0))
+    socket_.bind(("", 0))
     address, port = socket_.getsockname()
     socket_.close()
     return port
@@ -57,7 +56,7 @@ def get_webdriver_request_headers(webdriver):
     while True:
         port = get_unused_port()
         try:
-            server = BaseHTTPServer.HTTPServer(('', port), HTTPRequestHandler)
+            server = http.server.HTTPServer(("", port), HTTPRequestHandler)
             break
         except socket.error:
             pass
@@ -66,7 +65,7 @@ def get_webdriver_request_headers(webdriver):
     original_window_handle = webdriver.current_window_handle
     webdriver.execute_script("window.open('http://127.0.0.1:%d/', '_blank');" % port)
 
-    update_headers_mutex.acquire()
+    UPDATER_HEADERS_MUTEX.acquire()
 
     # Not optional: Make sure that the webdriver didn't switch the window handle to the newly opened window. Behaviors
     # of different webdrivers seem to differ here. Workaround for Firefox: If a new window is opened via JavaScript as a
@@ -74,17 +73,17 @@ def get_webdriver_request_headers(webdriver):
     # to fix this issue.
     webdriver.switch_to.window(original_window_handle)
 
-    global headers
-    headers_ = headers
-    headers = None
+    global HEADERS
+    headers_ = HEADERS
+    HEADERS = None
 
     # Remove the host header, which will simply contain the localhost address of the HTTPRequestHandler instance
-    del headers_['host']
+    del headers_["host"]
     return headers_
 
 
 def prepare_requests_cookies(webdriver_cookies):
-    return {str(cookie['name']): str(cookie['value']) for cookie in webdriver_cookies}
+    return {str(cookie["name"]): str(cookie["value"]) for cookie in webdriver_cookies}
 
 
 def get_tld(url):
@@ -95,7 +94,7 @@ def get_tld(url):
     # unchanged.
     if not components.registered_domain:
         try:
-            return url.split('://', 1)[1].split(':', 1)[0].split('/', 1)[0]
+            return url.split("://", 1)[1].split(":", 1)[0].split("/", 1)[0]
         except IndexError:
             return url
 
@@ -144,29 +143,28 @@ class RequestsSessionMixin(object):
         self.requests_session = requests.Session()
 
         self.__has_webdriver_request_headers = False
-        self.__is_phantomjs = self.name == 'phantomjs'
-        self.__is_phantomjs_211 = self.__is_phantomjs and self.capabilities['version'] == '2.1.1'
+        self.__is_phantomjs = self.name == "phantomjs"
+        self.__is_phantomjs_211 = self.__is_phantomjs and self.capabilities["version"] == "2.1.1"
 
     # Workaround for PhantomJS bug: https://github.com/ariya/phantomjs/issues/14047
     def add_cookie(self, cookie_dict):
         try:
             super(RequestsSessionMixin, self).add_cookie(cookie_dict)
         except WebDriverException as exception:
-            details = json.loads(exception.msg)
-            if not (self.__is_phantomjs_211 and details['errorMessage'] == 'Unable to set Cookie'):
+            if not (self.__is_phantomjs_211 and exception.msg == "Unable to set Cookie"):
                 raise
 
     def request(self, method, url, **kwargs):
         if not self.__has_webdriver_request_headers:
             # Workaround for Chrome bug: https://bugs.chromium.org/p/chromedriver/issues/detail?id=1077
-            if self.name == 'chrome':
+            if self.name == "chrome":
                 window_handles_before = len(self.window_handles)
                 self.requests_session.headers = get_webdriver_request_headers(self)
 
                 # Wait until the newly opened window handle is closed again, to prevent switching to it just as it is
                 # about to be closed
                 while len(self.window_handles) > window_handles_before:
-                    pass
+                    time.sleep(0.01)
             else:
                 self.requests_session.headers = get_webdriver_request_headers(self)
 
@@ -174,8 +172,8 @@ class RequestsSessionMixin(object):
 
             # Delete cookies from the request headers, to prevent overwriting manually set cookies later. This should
             # only happen when the webdriver has cookies set for the localhost
-            if 'cookie' in self.requests_session.headers:
-                del self.requests_session.headers['cookie']
+            if "cookie" in self.requests_session.headers:
+                del self.requests_session.headers["cookie"]
 
         original_window_handle = None
         opened_window_handle = None
@@ -190,7 +188,7 @@ class RequestsSessionMixin(object):
             # Create a new window handle manually in case it wasn't found
             if not window_handle:
                 previous_window_handles = set(self.window_handles)
-                components = urlparse(url)
+                components = urllib.parse.urlsplit(url)
                 self.execute_script("window.open('%s://%s/', '_blank');" % (components.scheme, components.netloc))
                 difference = set(self.window_handles) - previous_window_handles
 
@@ -210,13 +208,13 @@ class RequestsSessionMixin(object):
                             predicate = make_match_domain_predicate(current_tld)
                             opened_window_handle = find_window_handle(self, predicate)
                             if not opened_window_handle:
-                                raise SeleniumRequestsException('window handle could not be found')
+                                raise SeleniumRequestsException("window handle could not be found")
 
         # Acquire WebDriver's cookies and merge them with potentially passed cookies
         cookies = prepare_requests_cookies(self.get_cookies())
-        if 'cookies' in kwargs:
-            cookies.update(kwargs['cookies'])
-        kwargs['cookies'] = cookies
+        if "cookies" in kwargs:
+            cookies.update(kwargs["cookies"])
+        kwargs["cookies"] = cookies
 
         response = self.requests_session.request(method, url, **kwargs)
 
@@ -225,15 +223,15 @@ class RequestsSessionMixin(object):
         for cookie in response.cookies:
             # Setting domain to None automatically instructs most webdrivers to use the domain of the current window
             # handle
-            cookie_dict = {'domain': None, 'name': cookie.name, 'value': cookie.value, 'secure': cookie.secure}
+            cookie_dict = {"domain": cookie.domain, "name": cookie.name, "value": cookie.value, "secure": cookie.secure}
             if cookie.expires:
-                cookie_dict['expiry'] = cookie.expires
+                cookie_dict["expiry"] = cookie.expires
             if cookie.path_specified:
-                cookie_dict['path'] = cookie.path
+                cookie_dict["path"] = cookie.path
 
             # Workaround for PhantomJS bug: PhantomJS doesn't accept None
             if self.__is_phantomjs:
-                cookie_dict['domain'] = current_tld
+                cookie_dict["domain"] = current_tld
 
             self.add_cookie(cookie_dict)
 
