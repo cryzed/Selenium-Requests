@@ -61,12 +61,13 @@ def get_webdriver_request_headers(webdriver):
         except socket.error:
             pass
 
-    threading.Thread(target=server.serve_forever).start()
+    threading.Thread(target=server.serve_forever, daemon=True).start()
     original_window_handle = webdriver.current_window_handle
     webdriver.execute_script("window.open('http://127.0.0.1:%d/', '_blank');" % port)
 
     UPDATER_HEADERS_MUTEX.acquire()
-    server.shutdown()
+    # XXX: .shutdown() seems to block indefinitely and not shut down the server
+    # server.shutdown()
 
     # Not optional: Make sure that the webdriver didn't switch the window handle to the newly opened window. Behaviors
     # of different webdrivers seem to differ here. Workaround for Firefox: If a new window is opened via JavaScript as a
@@ -75,12 +76,12 @@ def get_webdriver_request_headers(webdriver):
     webdriver.switch_to.window(original_window_handle)
 
     global HEADERS
-    headers_ = HEADERS
+    headers = HEADERS
     HEADERS = None
 
     # Remove the host header, which will simply contain the localhost address of the HTTPRequestHandler instance
-    del headers_["host"]
-    return headers_
+    del headers["host"]
+    return headers
 
 
 def prepare_requests_cookies(webdriver_cookies):
