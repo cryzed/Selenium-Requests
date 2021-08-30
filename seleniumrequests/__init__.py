@@ -1,4 +1,4 @@
-__version__ = "1.3.2"
+__version__ = "1.3.3"
 
 from selenium.webdriver import Android as _Android
 from selenium.webdriver import BlackBerry as _BlackBerry

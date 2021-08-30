@@ -239,3 +239,7 @@ class RequestsSessionMixin(object):
             self.switch_to.window(original_window_handle)
 
         return response
+
+
+# backwards-compatibility
+RequestMixin = RequestsSessionMixin
