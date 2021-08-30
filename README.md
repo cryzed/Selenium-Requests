@@ -28,11 +28,11 @@ print(response)
 
 
 # More complex usage, using a WebDriver from another Selenium-related module:
-from seleniumrequests.request import RequestMixin
+from seleniumrequests.request import RequestsSessionMixin
 from someothermodule import CustomWebDriver
 
 
-class MyCustomWebDriver(RequestMixin, CustomWebDriver):
+class MyCustomWebDriver(RequestsSessionMixin, CustomWebDriver):
     pass
 
 
