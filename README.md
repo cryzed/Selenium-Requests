@@ -45,3 +45,16 @@ print(response)
 Installation
 ------------
 ```pip install selenium-requests```
+
+Remote WebDriver
+----------------
+When using `webdriver.Remote` it is very likely that the HTTP Proxy Server spawned by `selenium-requests` does not run on the same machine. By default the webdriver tries to access the Proxy Server under `127.0.0.1`. This can be changed by passing the `proxy_host=` argument with the correct IP or hostname to the webdriver.
+
+```python
+driver = seleniumrequests.Remote(
+    'http://192.168.101.1:4444/wd/hub',
+    options=chrome_options,
+    proxy_host='192.168.101.2'
+    )
+
+```
