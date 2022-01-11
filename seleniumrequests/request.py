@@ -50,7 +50,7 @@ def get_unused_port():
     return port
 
 
-def get_webdriver_request_headers(webdriver):
+def get_webdriver_request_headers(webdriver, proxy_host='127.0.0.1'):
     # There's a small chance that the port was taken since the call of get_unused_port(), so make sure we try as often
     # as needed
     while True:
@@ -63,7 +63,7 @@ def get_webdriver_request_headers(webdriver):
 
     threading.Thread(target=server.serve_forever, daemon=True).start()
     original_window_handle = webdriver.current_window_handle
-    webdriver.execute_script("window.open('http://127.0.0.1:%d/', '_blank');" % port)
+    webdriver.execute_script("window.open('http://%s:%d/', '_blank');" % (proxy_host, port))
 
     UPDATER_HEADERS_MUTEX.acquire()
     # XXX: .shutdown() seems to block indefinitely and not shut down the server
@@ -140,13 +140,14 @@ def make_match_domain_predicate(domain):
 
 
 class RequestsSessionMixin(object):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, proxy_host='127.0.0.1', **kwargs):
         super(RequestsSessionMixin, self).__init__(*args, **kwargs)
         self.requests_session = requests.Session()
 
         self.__has_webdriver_request_headers = False
         self.__is_phantomjs = self.name == "phantomjs"
         self.__is_phantomjs_211 = self.__is_phantomjs and self.capabilities["version"] == "2.1.1"
+        self._proxy_host = proxy_host
 
     # Workaround for PhantomJS bug: https://github.com/ariya/phantomjs/issues/14047
     def add_cookie(self, cookie_dict):
@@ -161,14 +162,14 @@ class RequestsSessionMixin(object):
             # Workaround for Chrome bug: https://bugs.chromium.org/p/chromedriver/issues/detail?id=1077
             if self.name == "chrome":
                 window_handles_before = len(self.window_handles)
-                self.requests_session.headers = get_webdriver_request_headers(self)
+                self.requests_session.headers = get_webdriver_request_headers(self, proxy_host=self._proxy_host)
 
                 # Wait until the newly opened window handle is closed again, to prevent switching to it just as it is
                 # about to be closed
                 while len(self.window_handles) > window_handles_before:
                     time.sleep(0.01)
             else:
-                self.requests_session.headers = get_webdriver_request_headers(self)
+                self.requests_session.headers = get_webdriver_request_headers(self, proxy_host=self._proxy_host)
 
             self.__has_webdriver_request_headers = True
 
