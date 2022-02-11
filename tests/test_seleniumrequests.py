@@ -1,16 +1,16 @@
+import http.cookies
+import http.server
 import json
 import socket
 import threading
 
 import pytest
 import requests
-import http.server
-import http.cookies
 
-from seleniumrequests import Firefox, Chrome, Ie, Edge, Opera, Safari, BlackBerry, PhantomJS, Android, Remote
+from seleniumrequests import Chrome, ChromiumEdge, Edge, Firefox, Ie, Opera, Remote, Safari, WebKitGTK, WPEWebKit
 from seleniumrequests.request import get_unused_port
 
-WEBDRIVER_CLASSES = Firefox, Chrome, Ie, Edge, Opera, Safari, BlackBerry, PhantomJS, Android, Remote
+WEBDRIVER_CLASSES = Chrome, ChromiumEdge, Edge, Firefox, Ie, Opera, Remote, Safari, WebKitGTK, WPEWebKit
 
 
 class DummyRequestHandler(http.server.BaseHTTPRequestHandler):
@@ -89,8 +89,8 @@ def instantiate_webdriver(webdriver_class):
     try:
         return webdriver_class()
     # Selenium raises Exception directly in some WebDriver classes...
-    except Exception:
-        pytest.skip("WebDriver not available")
+    except Exception as error:
+        pytest.skip("WebDriver not available: %s" % error)
 
 
 def make_window_handling_test(webdriver_class):
@@ -103,7 +103,7 @@ def make_window_handling_test(webdriver_class):
         # We need a different domain here to test the correct behaviour. Using
         # localhost isn't fool-proof because the hosts file is editable, so
         # make the most reliable choice we can: Google
-        webdriver.request("GET", "https://www.google.com/")
+        webdriver.request("GET", "https://www.github.com/")
 
         # Make sure that the window handle was switched back to the original
         # one after making a request that caused a new window to open

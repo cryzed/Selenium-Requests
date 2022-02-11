@@ -1,13 +1,13 @@
+import http.server
 import socket
 import threading
-import warnings
-import http.server
-import urllib.parse
 import time
+import urllib.parse
+import warnings
 
 import requests
 import tldextract
-from selenium.common.exceptions import NoSuchWindowException, WebDriverException
+from selenium.common.exceptions import NoSuchWindowException
 
 FIND_WINDOW_HANDLE_WARNING = (
     "Created window handle could not be found reliably. Using less reliable "
@@ -142,20 +142,12 @@ def make_match_domain_predicate(domain):
 class RequestsSessionMixin(object):
     def __init__(self, *args, proxy_host="127.0.0.1", **kwargs):
         super(RequestsSessionMixin, self).__init__(*args, **kwargs)
-        self.requests_session = requests.Session()
-
-        self.__has_webdriver_request_headers = False
-        self.__is_phantomjs = self.name == "phantomjs"
-        self.__is_phantomjs_211 = self.__is_phantomjs and self.capabilities["version"] == "2.1.1"
         self._proxy_host = proxy_host
+        self.requests_session = requests.Session()
+        self.__has_webdriver_request_headers = False
 
-    # Workaround for PhantomJS bug: https://github.com/ariya/phantomjs/issues/14047
     def add_cookie(self, cookie_dict):
-        try:
-            super(RequestsSessionMixin, self).add_cookie(cookie_dict)
-        except WebDriverException as exception:
-            if not (self.__is_phantomjs_211 and exception.msg == "Unable to set Cookie"):
-                raise
+        super(RequestsSessionMixin, self).add_cookie(cookie_dict)
 
     def request(self, method, url, **kwargs):
         if not self.__has_webdriver_request_headers:
