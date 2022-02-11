@@ -142,8 +142,10 @@ def make_match_domain_predicate(domain):
 class RequestsSessionMixin(object):
     def __init__(self, *args, proxy_host="127.0.0.1", **kwargs):
         super(RequestsSessionMixin, self).__init__(*args, **kwargs)
-        self._proxy_host = proxy_host
         self.requests_session = requests.Session()
+
+        # Use double underscore to prevent name clashes with all subclasses
+        self.__proxy_host = proxy_host
         self.__has_webdriver_request_headers = False
 
     def add_cookie(self, cookie_dict):
@@ -154,14 +156,14 @@ class RequestsSessionMixin(object):
             # Workaround for Chrome bug: https://bugs.chromium.org/p/chromedriver/issues/detail?id=1077
             if self.name == "chrome":
                 window_handles_before = len(self.window_handles)
-                self.requests_session.headers = get_webdriver_request_headers(self, proxy_host=self._proxy_host)
+                self.requests_session.headers = get_webdriver_request_headers(self, proxy_host=self.__proxy_host)
 
                 # Wait until the newly opened window handle is closed again, to prevent switching to it just as it is
                 # about to be closed
                 while len(self.window_handles) > window_handles_before:
                     time.sleep(0.01)
             else:
-                self.requests_session.headers = get_webdriver_request_headers(self, proxy_host=self._proxy_host)
+                self.requests_session.headers = get_webdriver_request_headers(self, proxy_host=self.__proxy_host)
 
             self.__has_webdriver_request_headers = True
 
@@ -232,7 +234,3 @@ class RequestsSessionMixin(object):
             self.switch_to.window(original_window_handle)
 
         return response
-
-
-# backwards-compatibility
-RequestMixin = RequestsSessionMixin
