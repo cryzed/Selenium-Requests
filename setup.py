@@ -6,7 +6,7 @@ with open("README.md") as file:
 
 setup(
     name="selenium-requests",
-    version="1.3.3",
+    version="1.3.4",
     description=(
         "Extends Selenium WebDriver classes to include the request function "
         "from the Requests library, while doing all the needed cookie and "

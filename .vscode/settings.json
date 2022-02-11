@@ -1,3 +1,7 @@
 {
-    "python.pythonPath": "/home/user/.cache/pypoetry/virtualenvs/selenium-requests-IaaUwCCb-py3.9/bin/python"
+    "python.testing.pytestArgs": [
+        "tests"
+    ],
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestEnabled": true
 }

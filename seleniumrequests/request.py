@@ -50,7 +50,7 @@ def get_unused_port():
     return port
 
 
-def get_webdriver_request_headers(webdriver, proxy_host='127.0.0.1'):
+def get_webdriver_request_headers(webdriver, proxy_host="127.0.0.1"):
     # There's a small chance that the port was taken since the call of get_unused_port(), so make sure we try as often
     # as needed
     while True:
@@ -140,7 +140,7 @@ def make_match_domain_predicate(domain):
 
 
 class RequestsSessionMixin(object):
-    def __init__(self, *args, proxy_host='127.0.0.1', **kwargs):
+    def __init__(self, *args, proxy_host="127.0.0.1", **kwargs):
         super(RequestsSessionMixin, self).__init__(*args, **kwargs)
         self.requests_session = requests.Session()
 
