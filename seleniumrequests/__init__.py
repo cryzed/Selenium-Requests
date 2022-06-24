@@ -5,7 +5,6 @@ from selenium.webdriver import ChromiumEdge as _ChromiumEdge
 from selenium.webdriver import Edge as _Edge
 from selenium.webdriver import Firefox as _Firefox
 from selenium.webdriver import Ie as _Ie
-from selenium.webdriver import Opera as _Opera
 from selenium.webdriver import Remote as _Remote
 from selenium.webdriver import Safari as _Safari
 from selenium.webdriver import WebKitGTK as _WebKitGTK
@@ -31,10 +30,6 @@ class Firefox(RequestsSessionMixin, _Firefox):
 
 
 class Ie(RequestsSessionMixin, _Ie):
-    pass
-
-
-class Opera(RequestsSessionMixin, _Opera):
     pass
 
 
