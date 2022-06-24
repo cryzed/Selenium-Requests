@@ -7,10 +7,10 @@ import threading
 import pytest
 import requests
 
-from seleniumrequests import Chrome, ChromiumEdge, Edge, Firefox, Ie, Opera, Remote, Safari, WebKitGTK, WPEWebKit
+from seleniumrequests import Chrome, ChromiumEdge, Edge, Firefox, Ie, Remote, Safari, WebKitGTK, WPEWebKit
 from seleniumrequests.request import get_unused_port
 
-WEBDRIVER_CLASSES = Chrome, ChromiumEdge, Edge, Firefox, Ie, Opera, Remote, Safari, WebKitGTK, WPEWebKit
+WEBDRIVER_CLASSES = Chrome, ChromiumEdge, Edge, Firefox, Ie, Remote, Safari, WebKitGTK, WPEWebKit
 
 
 class DummyRequestHandler(http.server.BaseHTTPRequestHandler):
