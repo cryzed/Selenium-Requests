@@ -73,7 +73,9 @@ def get_webdriver_request_headers(webdriver, proxy_host="127.0.0.1"):
     # of different webdrivers seem to differ here. Workaround for Firefox: If a new window is opened via JavaScript as a
     # new tab, requesting self.current_url never returns. Explicitly switching to the current window handle again seems
     # to fix this issue.
-    webdriver.switch_to.window(original_window_handle)
+    if not (webdriver.name == "chrome" and webdriver.capabilities["browserVersion"].startswith("106.")):
+        # Workaround for buggy Chrome/Chromedriver combination: https://github.com/cryzed/Selenium-Requests/issues/53
+        webdriver.switch_to.window(original_window_handle)
 
     global HEADERS
     headers = HEADERS
@@ -153,18 +155,7 @@ class RequestsSessionMixin(object):
 
     def request(self, method, url, **kwargs):
         if not self.__has_webdriver_request_headers:
-            # Workaround for Chrome bug: https://bugs.chromium.org/p/chromedriver/issues/detail?id=1077
-            if self.name == "chrome":
-                window_handles_before = len(self.window_handles)
-                self.requests_session.headers = get_webdriver_request_headers(self, proxy_host=self.__proxy_host)
-
-                # Wait until the newly opened window handle is closed again, to prevent switching to it just as it is
-                # about to be closed
-                while len(self.window_handles) > window_handles_before:
-                    time.sleep(0.01)
-            else:
-                self.requests_session.headers = get_webdriver_request_headers(self, proxy_host=self.__proxy_host)
-
+            self.requests_session.headers = get_webdriver_request_headers(self, proxy_host=self.__proxy_host)
             self.__has_webdriver_request_headers = True
 
             # Delete cookies from the request headers, to prevent overwriting manually set cookies later. This should
