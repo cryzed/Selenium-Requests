@@ -61,6 +61,8 @@ on the same machine. By default, the webdriver tries to access the proxy server 
 by passing the `proxy_host=` argument with the correct IP or hostname to the webdriver.
 
 ```python
+import seleniumrequests
+
 driver = seleniumrequests.Remote(
     'http://192.168.101.1:4444/wd/hub',
     options=chrome_options,
