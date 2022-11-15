@@ -73,7 +73,7 @@ def get_webdriver_request_headers(webdriver, proxy_host="127.0.0.1"):
     # of different webdrivers seem to differ here. Workaround for Firefox: If a new window is opened via JavaScript as a
     # new tab, requesting self.current_url never returns. Explicitly switching to the current window handle again seems
     # to fix this issue.
-    if not (webdriver.name == "chrome" and webdriver.capabilities["browserVersion"].startswith("106.")):
+    if not (webdriver.name == "chrome" and webdriver.capabilities["browserVersion"].startswith(("106.", "107."))):
         # Workaround for buggy Chrome/Chromedriver combination: https://github.com/cryzed/Selenium-Requests/issues/53
         webdriver.switch_to.window(original_window_handle)
 
