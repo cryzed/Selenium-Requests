@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "selenium-requests"
-version = "2.0.2"
+version = "2.0.3"
 description = "Extends Selenium WebDriver classes to include the request function from the Requests library, while doing all the needed cookie and request headers handling."
 readme = "README.md"
 authors = ["Chris Braun <cryzed@googlemail.com>"]
