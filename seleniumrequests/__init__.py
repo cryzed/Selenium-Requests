@@ -1,4 +1,4 @@
-__version__ = "2.0.3"
+__version__ = "2.0.4"
 
 from selenium.webdriver import Chrome as _Chrome
 from selenium.webdriver import ChromiumEdge as _ChromiumEdge
